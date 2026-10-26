@@ -17,15 +17,10 @@ exports[`components/SystemNotice should match snapshot for admin, admin notice 1
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>
@@ -86,15 +81,10 @@ exports[`components/SystemNotice should match snapshot for admin, regular notice
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>
@@ -146,15 +136,10 @@ exports[`components/SystemNotice should match snapshot for regular user, admin a
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>
@@ -214,15 +199,10 @@ exports[`components/SystemNotice should match snapshot for regular user, regular
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>
@@ -276,15 +256,10 @@ exports[`components/SystemNotice should match snapshot for show function returni
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>
@@ -336,15 +311,10 @@ exports[`components/SystemNotice should match snapshot for with allowForget equa
           x="0px"
           y="0px"
         >
-          <rect
+          <image
             height="512"
-            rx="112"
-            style="fill: #1e2a8c;"
+            href="test-file-stub"
             width="512"
-          />
-          <path
-            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-            style="fill: #ffffff;"
           />
         </svg>
       </span>

@@ -4,6 +4,8 @@
 import React from 'react';
 import styled from 'styled-components';
 
+import logoMark from 'images/logo-mark.png';
+
 type Props = {
     width?: number;
     height?: number;
@@ -16,7 +18,7 @@ const Svg = styled.svg.attrs({
     xmlnsXlink: 'http://www.w3.org/1999/xlink',
 })``;
 
-// SMM wordmark (login header, global header). Core Blue tile + bolt, text in currentColor so it
+// SMM wordmark (login header, global header). The SMM mark (images/logo-mark.png), text in currentColor so it
 // reads on light and dark headers. Source of the rendered PNG/SVG assets: deploy/brand-icons.mjs.
 export default (props: Props) => (
     <Svg
@@ -30,15 +32,10 @@ export default (props: Props) => (
         aria-label='SMM'
     >
         <g transform='translate(0 20) scale(0.3125)'>
-            <rect
+            <image
+                href={logoMark}
                 width='512'
                 height='512'
-                rx='112'
-                fill='#1e2a8c'
-            />
-            <path
-                d='M300 48 L132 300 H240 L212 464 L380 212 H272 Z'
-                fill='#ffffff'
             />
         </g>
         <text

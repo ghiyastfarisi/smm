@@ -98,15 +98,10 @@ exports[`comoponents/rhs_card/RhsCard should match on post when no plugin defini
                           x="0px"
                           y="0px"
                         >
-                          <rect
+                          <image
                             height="512"
-                            rx="112"
-                            style="fill: #1e2a8c;"
+                            href="test-file-stub"
                             width="512"
-                          />
-                          <path
-                            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-                            style="fill: #ffffff;"
                           />
                         </svg>
                       </span>
@@ -259,15 +254,10 @@ exports[`comoponents/rhs_card/RhsCard should match on post when plugin defining 
                           x="0px"
                           y="0px"
                         >
-                          <rect
+                          <image
                             height="512"
-                            rx="112"
-                            style="fill: #1e2a8c;"
+                            href="test-file-stub"
                             width="512"
-                          />
-                          <path
-                            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-                            style="fill: #ffffff;"
                           />
                         </svg>
                       </span>
@@ -420,15 +410,10 @@ exports[`comoponents/rhs_card/RhsCard should match on post when plugin defining 
                           x="0px"
                           y="0px"
                         >
-                          <rect
+                          <image
                             height="512"
-                            rx="112"
-                            style="fill: #1e2a8c;"
+                            href="test-file-stub"
                             width="512"
-                          />
-                          <path
-                            d="M300 48 L132 300 H240 L212 464 L380 212 H272 Z"
-                            style="fill: #ffffff;"
                           />
                         </svg>
                       </span>
