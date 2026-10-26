@@ -372,6 +372,11 @@ func generateSearchQueryForExpression(query sq.SelectBuilder, terms []string, fi
 		termArgs := []any{}
 		for _, field := range fields {
 			prevArgs++
+			if clause, arg, ok := userPIIClause(field, term); ok {
+				searchFields = append(searchFields, strings.Replace(clause, "?", fmt.Sprintf("$%d", prevArgs), 1))
+				termArgs = append(termArgs, arg)
+				continue
+			}
 			searchFields = append(searchFields, fmt.Sprintf("lower(%s) LIKE lower($%d) escape '*' ", field, prevArgs))
 			termArgs = append(termArgs, fmt.Sprintf("%%%s%%", strings.TrimLeft(term, "@")))
 		}

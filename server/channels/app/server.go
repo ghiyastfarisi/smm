@@ -1521,7 +1521,7 @@ func (s *Server) sendLicenseUpForRenewalEmail(users map[string]*model.User, lice
 
 	for _, user := range users {
 		if err := s.EmailService.SendLicenseUpForRenewalEmail(user.Email, user.Locale, daysToExpiration); err != nil {
-			mlog.Error("Error sending license up for renewal email to", mlog.String("user_email", user.Email), mlog.Err(err))
+			mlog.Error("Error sending license up for renewal email to", emailLogField(user.Email), mlog.Err(err))
 			countNotOks++
 		}
 	}
@@ -1606,13 +1606,13 @@ func (s *Server) doLicenseExpirationCheck() {
 	// send email to admin(s)
 	for _, user := range users {
 		if user.Email == "" {
-			mlog.Error("Invalid system admin email.", mlog.String("user_email", user.Email))
+			mlog.Error("Invalid system admin email.", emailLogField(user.Email))
 			continue
 		}
 
-		mlog.Debug("Sending license expired email.", mlog.String("user_email", user.Email))
+		mlog.Debug("Sending license expired email.", emailLogField(user.Email))
 		if err := s.SendRemoveExpiredLicenseEmail(user.Email, user.Locale); err != nil {
-			mlog.Error("Error while sending the license expired email.", mlog.String("user_email", user.Email), mlog.Err(err))
+			mlog.Error("Error while sending the license expired email.", emailLogField(user.Email), mlog.Err(err))
 		}
 	}
 

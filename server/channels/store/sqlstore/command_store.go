@@ -61,12 +61,14 @@ func (s SqlCommandStore) Save(command *model.Command) (*model.Command, error) {
 		return nil, err
 	}
 
+	storedToken := sealed("commands.token", command.Id, command.Token)
+
 	insertQuery := s.getQueryBuilder().
 		Insert("Commands").
 		Columns(s.commandColumns...).
 		Values(
 			command.Id,
-			command.Token,
+			storedToken,
 			command.CreateAt,
 			command.UpdateAt,
 			command.DeleteAt,
@@ -196,9 +198,11 @@ func (s SqlCommandStore) Update(cmd *model.Command) (*model.Command, error) {
 		return nil, err
 	}
 
+	storedToken := sealed("commands.token", cmd.Id, cmd.Token)
+
 	query := s.getQueryBuilder().
 		Update("Commands").
-		Set("Token", cmd.Token).
+		Set("Token", storedToken).
 		Set("CreateAt", cmd.CreateAt).
 		Set("UpdateAt", cmd.UpdateAt).
 		Set("CreatorId", cmd.CreatorId).

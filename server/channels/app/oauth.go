@@ -760,7 +760,11 @@ func (a *App) getSSOProvider(service string) (einterfaces.OAuthProvider, *model.
 		return nil, model.NewAppError("getSSOProvider", "api.user.authorize_oauth_user.unsupported.app_error", nil, "service="+service, http.StatusNotImplemented)
 	}
 	providerType := service
-	if strings.Contains(*sso.Scope, OpenIDScope) {
+	// mrpostman: every service uses its own provider when one is registered (gitlab → gitlab, openid → the
+	// in-tree AGPL provider in oauthproviders/openid), so the AuthService stored for existing SSO users never
+	// changes. A service without a provider of its own (google/office365 live in the private enterprise
+	// modules) whose scope contains "openid" falls back to the OpenID provider instead of failing.
+	if einterfaces.GetOAuthProvider(providerType) == nil && strings.Contains(*sso.Scope, OpenIDScope) && einterfaces.GetOAuthProvider(model.ServiceOpenid) != nil {
 		providerType = model.ServiceOpenid
 	}
 	provider := einterfaces.GetOAuthProvider(providerType)

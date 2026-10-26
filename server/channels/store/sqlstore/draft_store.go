@@ -51,7 +51,7 @@ func draftToSlice(draft *model.Draft) []any {
 		draft.CreateAt,
 		draft.UpdateAt,
 		draft.DeleteAt,
-		draft.Message,
+		sealedIn(draft.ChannelId, "drafts.message", draftKey(draft.UserId, draft.ChannelId, draft.RootId), draft.Message),
 		draft.RootId,
 		draft.ChannelId,
 		draft.UserId,
@@ -107,7 +107,7 @@ func (s *SqlDraftStore) Upsert(draft *model.Draft) (*model.Draft, error) {
 	builder := s.getQueryBuilder().Insert("Drafts").
 		Columns(draftSliceColumns()...).
 		Values(draftToSlice(draft)...).
-		SuffixExpr(sq.Expr("ON CONFLICT (UserId, ChannelId, RootId) DO UPDATE SET UpdateAt = ?, Message = ?, Props = ?, FileIds = ?, Priority = ?, Type = ?, DeleteAt = ?", draft.UpdateAt, draft.Message, draft.Props, draft.FileIds, draft.Priority, draft.Type, 0))
+		SuffixExpr(sq.Expr("ON CONFLICT (UserId, ChannelId, RootId) DO UPDATE SET UpdateAt = ?, Message = ?, Props = ?, FileIds = ?, Priority = ?, Type = ?, DeleteAt = ?", draft.UpdateAt, sealedIn(draft.ChannelId, "drafts.message", draftKey(draft.UserId, draft.ChannelId, draft.RootId), draft.Message), draft.Props, draft.FileIds, draft.Priority, draft.Type, 0))
 
 	query, args, err := builder.ToSql()
 
@@ -249,6 +249,8 @@ func (s *SqlDraftStore) determineMaxDraftSize() int {
 	`); err != nil {
 		mlog.Warn("Unable to determine the maximum supported draft size", mlog.Err(err))
 	}
+
+	maxDraftSizeBytes = cipherCap(maxDraftSizeBytes)
 
 	// Assume a worst-case representation of four bytes per rune.
 	maxDraftSize := int(maxDraftSizeBytes) / 4

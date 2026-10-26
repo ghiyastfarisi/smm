@@ -124,12 +124,12 @@ func (s *Server) DoSecurityUpdateCheck() {
 					}
 
 					for _, user := range users {
-						mlog.Info("Sending security bulletin", mlog.String("bulletin_id", bulletin.Id), mlog.String("user_email", user.Email))
+						mlog.Info("Sending security bulletin", mlog.String("bulletin_id", bulletin.Id), emailLogField(user.Email))
 						license := s.License()
 						mailConfig := s.MailServiceConfig()
 						err = mail.SendMailUsingConfig(user.Email, i18n.T("mattermost.bulletin.subject"), string(body), mailConfig, license != nil && *license.Features.Compliance, "", "", "", "", "SecurityUpdateCheck")
 						if err != nil {
-							s.Log().Error("Failed to send security bulletin email", mlog.String("user_email", user.Email), mlog.Err(err))
+							s.Log().Error("Failed to send security bulletin email", emailLogField(user.Email), mlog.Err(err))
 						}
 					}
 

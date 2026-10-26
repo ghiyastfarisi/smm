@@ -73,7 +73,7 @@ func (s *SqlScheduledPostStore) scheduledPostToSlice(scheduledPost *model.Schedu
 		scheduledPost.UserId,
 		scheduledPost.ChannelId,
 		scheduledPost.RootId,
-		scheduledPost.Message,
+		sealedIn(scheduledPost.ChannelId, "scheduledposts.message", scheduledPost.Id, scheduledPost.Message),
 		model.StringInterfaceToJSON(scheduledPost.GetProps()),
 		model.ArrayToJSON(scheduledPost.FileIds),
 		model.StringInterfaceToJSON(scheduledPost.Priority),
@@ -295,7 +295,7 @@ func (s *SqlScheduledPostStore) UpdateRecurringScheduledPosts(rctx request.CTX, 
 func (s *SqlScheduledPostStore) toUpdateMap(scheduledPost *model.ScheduledPost) map[string]any {
 	return map[string]any{
 		"UpdateAt":       model.GetMillis(),
-		"Message":        scheduledPost.Message,
+		"Message":        sealedIn(scheduledPost.ChannelId, "scheduledposts.message", scheduledPost.Id, scheduledPost.Message),
 		"Props":          model.StringInterfaceToJSON(scheduledPost.GetProps()),
 		"FileIds":        model.ArrayToJSON(scheduledPost.FileIds),
 		"Priority":       model.StringInterfaceToJSON(scheduledPost.Priority),

@@ -752,18 +752,14 @@ func (a *App) createSessionForUserAccessToken(rctx request.CTX, tokenString stri
 }
 
 func (a *App) RevokeUserAccessToken(rctx request.CTX, token *model.UserAccessToken) *model.AppError {
-	var session *model.Session
-	session, _ = a.ch.srv.platform.GetSessionContext(rctx, token.Token)
-
+	// The store deletes the token's sessions with it. token.Token is only the stored
+	// hash here, so the session can't be looked up by it: evict the user's cache instead.
 	if err := a.Srv().Store().UserAccessToken().Delete(token.Id); err != nil {
 		return model.NewAppError("RevokeUserAccessToken", "app.user_access_token.delete.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	if session == nil {
-		return nil
-	}
-
-	return a.RevokeSession(rctx, session)
+	a.ch.srv.platform.ClearUserSessionCache(token.UserId)
+	return nil
 }
 
 // revokeNonCompliantBatchLimit bounds both the number of rows fetched by
@@ -863,18 +859,13 @@ func (a *App) RevokeNonCompliantUserAccessTokens(rctx request.CTX) (int64, *mode
 }
 
 func (a *App) DisableUserAccessToken(rctx request.CTX, token *model.UserAccessToken) *model.AppError {
-	var session *model.Session
-	session, _ = a.ch.srv.platform.GetSessionContext(rctx, token.Token)
-
+	// The store deletes the token's sessions; see RevokeUserAccessToken.
 	if err := a.Srv().Store().UserAccessToken().UpdateTokenDisable(token.Id); err != nil {
 		return model.NewAppError("DisableUserAccessToken", "app.user_access_token.update_token_disable.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	if session == nil {
-		return nil
-	}
-
-	return a.RevokeSession(rctx, session)
+	a.ch.srv.platform.ClearUserSessionCache(token.UserId)
+	return nil
 }
 
 func (a *App) EnableUserAccessToken(rctx request.CTX, token *model.UserAccessToken) *model.AppError {
@@ -915,20 +906,13 @@ func (a *App) RotateUserAccessToken(rctx request.CTX, token *model.UserAccessTok
 		return nil, appErr
 	}
 
-	// Capture the old session before the store update so we can evict it from
-	// the cache after the secret changes.
-	oldSession, _ := a.ch.srv.platform.GetSessionContext(rctx, token.Token)
-
 	newSecret := model.NewId()
 	if err := a.Srv().Store().UserAccessToken().UpdateTokenRotate(token.Id, newSecret, expiresAt); err != nil {
 		return nil, model.NewAppError("RotateUserAccessToken", "app.user_access_token.rotate.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	if oldSession != nil {
-		if err := a.RevokeSession(rctx, oldSession); err != nil {
-			rctx.Logger().Warn("Failed to revoke old session after token rotate", mlog.String("token_id", token.Id), mlog.Err(err))
-		}
-	}
+	// The store deleted the old secret's sessions; evict them from the cache too.
+	a.ch.srv.platform.ClearUserSessionCache(token.UserId)
 
 	token.Token = newSecret
 	token.ExpiresAt = expiresAt

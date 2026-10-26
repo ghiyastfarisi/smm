@@ -200,7 +200,7 @@ export default class Integrations extends React.PureComponent <Props> {
                     description={
                         <FormattedMessage
                             id='bots.manage.description'
-                            defaultMessage='Use bot accounts to integrate with Mattermost through plugins or the API'
+                            defaultMessage='Use bot accounts to integrate with SMM through plugins or the API'
                         />
                     }
                     link={'/' + this.props.team.name + '/integrations/bots'}

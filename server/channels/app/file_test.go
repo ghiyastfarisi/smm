@@ -144,7 +144,7 @@ func TestUploadFile(t *testing.T) {
 	}()
 
 	value := fmt.Sprintf("%v/teams/noteam/channels/%v/users/nouser/%v/%v",
-		time.Now().Format("20060102"), channelID, info1.Id, filename)
+		time.Now().Format("20060102"), channelID, info1.Id, storedFileName(filename))
 	assert.Equal(t, value, info1.Path, "Stored file at incorrect path")
 }
 

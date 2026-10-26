@@ -133,7 +133,7 @@ func (a *App) CreateUploadSession(rctx request.CTX, us *model.UploadSession) (*m
 	now := time.Now()
 	us.CreateAt = model.GetMillisForTime(now)
 	if us.Type == model.UploadTypeAttachment {
-		us.Path = now.Format("20060102") + "/teams/noteam/channels/" + us.ChannelId + "/users/" + us.UserId + "/" + us.Id + "/" + filepath.Base(us.Filename)
+		us.Path = now.Format("20060102") + "/teams/noteam/channels/" + us.ChannelId + "/users/" + us.UserId + "/" + us.Id + "/" + storedFileName(filepath.Base(us.Filename))
 	} else if us.Type == model.UploadTypeImport {
 		us.Path = filepath.Clean(*a.Config().ImportSettings.Directory) + "/" + us.Id + "_" + filepath.Base(us.Filename)
 	}
@@ -320,7 +320,7 @@ func (a *App) UploadData(rctx request.CTX, us *model.UploadSession, rd io.Reader
 				map[string]any{"Filename": us.Filename, "Width": info.Width, "Height": info.Height}, "", http.StatusBadRequest)
 		}
 
-		nameWithoutExtension := info.Name[:strings.LastIndex(info.Name, ".")]
+		nameWithoutExtension := storedBaseName(info.Name)
 		info.PreviewPath = filepath.Dir(info.Path) + "/" + nameWithoutExtension + "_preview." + getFileExtFromMimeType(info.MimeType)
 		info.ThumbnailPath = filepath.Dir(info.Path) + "/" + nameWithoutExtension + "_thumb." + getFileExtFromMimeType(info.MimeType)
 		imgData, fileErr := a.ReadFile(uploadPath)

@@ -468,7 +468,8 @@ func TestSetExtraSessionProps(t *testing.T) {
 		appErr := th.App.SetExtraSessionProps(session, map[string]string{})
 		require.Nil(t, appErr)
 		updatedSession, _ := th.App.GetSession(session.Token)
-		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Id)
+		// By token: tokens are stored hashed, so a lookup by id returns the hash.
+		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Token)
 		assert.Equal(t, session, updatedSession)
 		assert.Equal(t, session, storeSession)
 	})
@@ -477,7 +478,8 @@ func TestSetExtraSessionProps(t *testing.T) {
 		appErr := th.App.SetExtraSessionProps(session, map[string]string{"testProp": "true"})
 		require.Nil(t, appErr)
 		updatedSession, _ := th.App.GetSession(session.Token)
-		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Id)
+		// By token: tokens are stored hashed, so a lookup by id returns the hash.
+		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Token)
 		assert.Equal(t, "true", updatedSession.Props["testProp"])
 		assert.Equal(t, "true", storeSession.Props["testProp"])
 	})
@@ -491,7 +493,8 @@ func TestSetExtraSessionProps(t *testing.T) {
 		appErr := th.App.SetExtraSessionProps(session, map[string]string{"testProp": "true"})
 		require.Nil(t, appErr)
 		updatedSession, _ := th.App.GetSession(session.Token)
-		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Id)
+		// By token: tokens are stored hashed, so a lookup by id returns the hash.
+		storeSession, _ := th.Server.Store().Session().Get(th.Context, session.Token)
 		assert.Equal(t, session, updatedSession)
 		assert.Equal(t, session, storeSession)
 		assert.Equal(t, "true", updatedSession.Props["testProp"])

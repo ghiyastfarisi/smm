@@ -29,6 +29,7 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/db"
 	"github.com/mattermost/mattermost/server/v8/channels/store"
 	"github.com/mattermost/mattermost/server/v8/einterfaces"
+	"github.com/mattermost/mattermost/server/v8/platform/shared/keyring"
 )
 
 type migrationDirection string
@@ -211,6 +212,22 @@ func New(settings model.SqlSettings, logger mlog.LoggerIFace, metrics einterface
 		wgMonitor:   &sync.WaitGroup{},
 	}
 
+	if cur, old, err := keyring.Load(); err != nil {
+		return nil, errors.Wrap(err, "failed to load the encryption keys")
+	} else if cur != nil {
+		c, err := newPostCipherFromRoots(cur, old)
+		if err != nil {
+			return nil, err
+		}
+		// v4 scopes name the channel's team; resolved lazily and cached in the cipher.
+		c.teamOf = func(channelID string) (string, error) {
+			var teamID string
+			err := store.GetMaster().Get(&teamID, "SELECT COALESCE(TeamId, '') FROM Channels WHERE Id = ?", channelID)
+			return teamID, err
+		}
+		msgCipher, cryptoLogger = c, logger
+	}
+
 	for _, option := range options {
 		if err := option(store); err != nil {
 			return nil, fmt.Errorf("failed to apply option: %w", err)
@@ -243,6 +260,22 @@ func New(settings model.SqlSettings, logger mlog.LoggerIFace, metrics einterface
 		err = store.migrate(migrationsDirectionUp, false, !store.disableMorphLogging)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to apply database migrations")
+		}
+
+		if err = store.encryptLegacyTokens(); err != nil {
+			return nil, err
+		}
+		if err = store.encryptLegacyUsers(); err != nil {
+			return nil, err
+		}
+		if err = store.encryptLegacyDrafts(); err != nil {
+			return nil, err
+		}
+		if err = store.encryptLegacyChannels(); err != nil {
+			return nil, err
+		}
+		if err = store.backfillPosts(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1152,6 +1185,8 @@ func (ss *SqlStore) determineMaxColumnSize(tableName, columnName string) (int, e
 		mlog.Warn("Unable to determine the maximum supported column size for Postgres", mlog.Err(err))
 		return 0, err
 	}
+
+	columnSizeBytes = cipherCap(columnSizeBytes)
 
 	// Assume a worst-case representation of four bytes per rune.
 	maxColumnSize := int(columnSizeBytes) / 4

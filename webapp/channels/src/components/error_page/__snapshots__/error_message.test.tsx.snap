@@ -19,7 +19,7 @@ exports[`components/error_page/ErrorMessage should match snapshot, channel_not_f
 exports[`components/error_page/ErrorMessage should match snapshot, local_storage type 1`] = `
 <div>
   <div>
-    Mattermost was unable to load because a setting in your browser prevents the use of its local storage features. To allow Mattermost to load, try the following actions:
+    SMM was unable to load because a setting in your browser prevents the use of its local storage features. To allow SMM to load, try the following actions:
     <ul>
       <li>
         Enable cookies

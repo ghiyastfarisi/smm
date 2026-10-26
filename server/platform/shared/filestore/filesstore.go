@@ -200,7 +200,11 @@ func (settings *FileBackendSettings) CheckMandatoryAzureFields() error {
 
 // NewFileBackend creates a new file backend
 func NewFileBackend(settings FileBackendSettings) (FileBackend, error) {
-	return newFileBackend(settings, true)
+	backend, err := newFileBackend(settings, true)
+	if err != nil {
+		return nil, err
+	}
+	return withEncryption(backend)
 }
 
 // NewExportFileBackend creates a new file backend for exports, that will not attempt to use bifrost.

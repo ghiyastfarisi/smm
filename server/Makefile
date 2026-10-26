@@ -3,6 +3,10 @@ ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 # Must be read before parse-time Enterprise detection so BUILD_ENTERPRISE_DIR applies.
 -include $(ROOT)config.override.mk
 
+# Local secrets such as ENCRYPTION_KEY (posts encryption at rest). Git-ignored.
+-include $(ROOT).env
+export ENCRYPTION_KEY
+
 ifeq ($(OS),Windows_NT)
 	PLATFORM := Windows
 else
@@ -91,10 +95,7 @@ ifneq ($(wildcard channels/imports/imports.go),)
 	IGNORE := $(shell rm -f channels/imports/imports.go)
 endif
 
-# Source available, already included with enterprise but also available during development.
-ifeq ($(BUILD_NUMBER),dev)
-	BUILD_TAGS += sourceavailable
-endif
+# SMM: server/enterprise/ (source-available) is removed, so there is no sourceavailable tag.
 
 # Webapp
 BUILD_WEBAPP_DIR ?= ../webapp
@@ -521,10 +522,8 @@ test-compile: setup-go-work gotestsum ## Compile tests.
 
 .PHONY: modules-tidy
 modules-tidy: setup-go-work ## Tidy Go modules
-	mv enterprise/external_imports.go enterprise/external_imports.go.orig
 	-$(GO) mod tidy
 	-cd public && $(GO) mod tidy
-	mv enterprise/external_imports.go.orig enterprise/external_imports.go
 
 .PHONY: test-server-pre
 test-server-pre: check-prereqs-enterprise start-docker gotestsum golang-versions ## Runs tests.

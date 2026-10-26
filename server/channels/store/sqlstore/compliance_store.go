@@ -143,6 +143,12 @@ func (s SqlComplianceStore) ComplianceExport(job *model.Compliance, cursor model
 		clauses := make([]string, len(keywords))
 
 		for i, keyword := range keywords {
+			if msgCipher != nil {
+				// Encrypted messages: exact-word match against the blind index.
+				clauses[i] = "Posts.Id IN (SELECT PostId FROM PostSearchTokens WHERE TokenHash = ?)"
+				argsKeywords = append(argsKeywords, msgCipher.hashWord(keyword))
+				continue
+			}
 			keyword = sanitizeSearchTerm(keyword, "\\")
 			clauses[i] = "LOWER(Posts.Message) LIKE ?"
 			argsKeywords = append(argsKeywords, "%"+keyword+"%")
@@ -159,6 +165,10 @@ func (s SqlComplianceStore) ComplianceExport(job *model.Compliance, cursor model
 
 		for i, email := range emails {
 			clauses[i] = "Users.Email = ?"
+			if msgCipher != nil {
+				clauses[i] = "Users.EmailHash = ?"
+				email = emailHash(email)
+			}
 			argsEmails = append(argsEmails, email)
 		}
 

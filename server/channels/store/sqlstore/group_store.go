@@ -526,7 +526,10 @@ func (s *SqlGroupStore) GetMemberUsersSortedPage(groupID string, page int, perPa
 		Select(getUsersColumns()...).
 		FromSelect(userQuery, "Users")
 
-	if teammateNameDisplay == model.ShowNicknameFullName {
+	if msgCipher != nil {
+		// Names are ciphertext in the database and cannot be ordered there.
+		orderQuery = orderQuery.OrderBy("Users.Username")
+	} else if teammateNameDisplay == model.ShowNicknameFullName {
 		orderQuery = orderQuery.OrderBy(`
 		CASE
 			WHEN Users.Nickname != '' THEN Users.Nickname

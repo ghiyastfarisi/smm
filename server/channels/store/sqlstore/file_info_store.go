@@ -126,8 +126,12 @@ func (fs SqlFileInfoStore) Save(rctx request.CTX, info *model.FileInfo) (*model.
 			:Name, :Extension, :Size, :MimeType, :Width, :Height, :HasPreviewImage, :MiniPreview, :Content, :RemoteId)
 	`
 
-	if _, err := fs.GetMaster().NamedExec(query, info); err != nil {
+	sealedInfo, tokenRows := sealFileInfo(info)
+	if _, err := fs.GetMaster().NamedExec(query, sealedInfo); err != nil {
 		return nil, errors.Wrap(err, "failed to save FileInfo")
+	}
+	if err := saveTokens(fs.SqlStore, fs.GetMaster(), "FileSearchTokens", "FileId", tokenRows); err != nil {
+		return nil, err
 	}
 	return info, nil
 }
@@ -175,6 +179,7 @@ func (fs SqlFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*mode
 		return nil, err
 	}
 
+	sealedInfo, tokenRows := sealFileInfo(info)
 	// PostID and ChannelID are deliberately ignored
 	// from the list of fields to keep those two immutable.
 	queryString, args, err := fs.getQueryBuilder().
@@ -185,7 +190,7 @@ func (fs SqlFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*mode
 			"Path":            info.Path,
 			"ThumbnailPath":   info.ThumbnailPath,
 			"PreviewPath":     info.PreviewPath,
-			"Name":            info.Name,
+			"Name":            sealedInfo.Name,
 			"Extension":       info.Extension,
 			"Size":            info.Size,
 			"MimeType":        info.MimeType,
@@ -193,7 +198,7 @@ func (fs SqlFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*mode
 			"Height":          info.Height,
 			"HasPreviewImage": info.HasPreviewImage,
 			"MiniPreview":     info.MiniPreview,
-			"Content":         info.Content,
+			"Content":         sealedInfo.Content,
 			"RemoteId":        info.RemoteId,
 		}).
 		Where(sq.Eq{"Id": info.Id}).
@@ -213,6 +218,9 @@ func (fs SqlFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*mode
 	}
 	if count == 0 {
 		return fs.Save(rctx, info)
+	}
+	if err := replaceFileSearchTokens(fs.SqlStore, fs.GetMaster(), info.Id, tokenRows); err != nil {
+		return nil, err
 	}
 	return info, nil
 }
@@ -406,7 +414,19 @@ func (fs SqlFileInfoStore) AttachToPost(rctx request.CTX, fileId, postId, channe
 	query := fs.getQueryBuilder().
 		Update("FileInfo").
 		Set("PostId", postId).
-		Set("ChannelId", channelId).
+		Set("ChannelId", channelId)
+	if msgCipher != nil {
+		// v4 seals name and content under the upload channel; attaching the file to a post in
+		// another channel re-seals them there, or readers would reject the moved scope.
+		var info model.FileInfo
+		err := fs.GetMaster().Get(&info, "SELECT Id, COALESCE(ChannelId, '') AS ChannelId, Name, Content FROM FileInfo WHERE Id = $1 AND PostId = ''", fileId)
+		if err == nil && info.ChannelId != channelId && !isSealed(info.Name) && !isSealed(info.Content) {
+			info.ChannelId = channelId
+			si, _ := sealFileInfo(&info) // same text: the search tokens stay valid
+			query = query.Set("Name", si.Name).Set("Content", si.Content)
+		}
+	}
+	query = query.
 		Where(sq.And{
 			sq.Eq{"Id": fileId},
 			sq.Eq{"PostId": ""},
@@ -436,9 +456,15 @@ func (fs SqlFileInfoStore) AttachToPost(rctx request.CTX, fileId, postId, channe
 }
 
 func (fs SqlFileInfoStore) SetContent(rctx request.CTX, fileId, content string) error {
+	var channelID string
+	if msgCipher != nil { // v4 seals under the file's channel
+		if err := fs.GetMaster().Get(&channelID, "SELECT COALESCE(ChannelId, '') FROM FileInfo WHERE Id = $1", fileId); err != nil {
+			return errors.Wrapf(err, "failed to get FileInfo channel with id=%s", fileId)
+		}
+	}
 	query := fs.getQueryBuilder().
 		Update("FileInfo").
-		Set("Content", content).
+		Set("Content", sealedIn(channelID, "fileinfo.content", fileId, content)).
 		Where(sq.Eq{"Id": fileId})
 
 	queryString, args, err := query.ToSql()
@@ -449,6 +475,18 @@ func (fs SqlFileInfoStore) SetContent(rctx request.CTX, fileId, content string) 
 	_, err = fs.GetMaster().Exec(queryString, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update FileInfo content with id=%s", fileId)
+	}
+
+	if msgCipher != nil {
+		var name string
+		if err := fs.GetMaster().Get(&name, "SELECT Name FROM FileInfo WHERE Id = $1", fileId); err != nil {
+			return errors.Wrapf(err, "failed to get FileInfo name with id=%s", fileId)
+		}
+		var rows [][2]string
+		for _, h := range msgCipher.indexTokens(name + " " + content) {
+			rows = append(rows, [2]string{fileId, h})
+		}
+		return replaceFileSearchTokens(fs.SqlStore, fs.GetMaster(), fileId, rows)
 	}
 
 	return nil
@@ -645,6 +683,10 @@ func (fs SqlFileInfoStore) Search(rctx request.CTX, paramsList []*model.SearchPa
 
 		if terms == "" && excludedTerms == "" {
 			// we've already confirmed that we have a channel or user to search for
+		} else if msgCipher != nil {
+			// Names and extracted text are encrypted at rest: match HMAC word hashes.
+			sub := "FileInfo.Id IN (SELECT FileId FROM FileSearchTokens WHERE TokenHash = ?)"
+			query = query.Where(tokenSearchClause(sub, msgCipher.queryTokens(terms), msgCipher.queryTokens(excludedTerms), params.OrTerms))
 		} else {
 			// Parse text for wildcards
 			if wildcard, err := regexp.Compile(`\*($| )`); err == nil {

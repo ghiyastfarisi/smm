@@ -57,7 +57,11 @@ type sqlxRow struct {
 
 func (r *sqlxRow) Scan(dest ...any) error {
 	defer r.cancel()
-	return r.row.Scan(dest...)
+	err := r.row.Scan(dest...)
+	for _, d := range dest {
+		decryptDest(d)
+	}
+	return err
 }
 
 // sqlxRows wraps *sqlx.Rows together with the context cancel function for the
@@ -78,6 +82,14 @@ func (r *sqlxRows) Next() bool {
 		r.cancel()
 	}
 	return ok
+}
+
+func (r *sqlxRows) Scan(dest ...any) error {
+	err := r.Rows.Scan(dest...)
+	for _, d := range dest {
+		decryptDest(d)
+	}
+	return err
 }
 
 func (r *sqlxRows) Close() error {
@@ -194,7 +206,9 @@ func (w *sqlxDBWrapper) Get(dest any, query string, args ...any) error {
 		}(time.Now())
 	}
 
-	return w.checkErr(w.db.GetContext(ctx, dest, query, args...))
+	err := w.checkErr(w.db.GetContext(ctx, dest, query, args...))
+	decryptDest(dest)
+	return err
 }
 
 func (w *sqlxDBWrapper) GetBuilder(dest any, builder Builder) error {
@@ -340,7 +354,9 @@ func (w *sqlxDBWrapper) SelectContext(ctx context.Context, dest any, query strin
 		}(time.Now())
 	}
 
-	return w.checkErr(w.db.SelectContext(ctx, dest, query, args...))
+	err := w.checkErr(w.db.SelectContext(ctx, dest, query, args...))
+	decryptDest(dest)
+	return err
 }
 
 // QueryContext forwards to the underlying DB, adding the wrapper timeout if the
@@ -412,7 +428,9 @@ func (w *sqlxTxWrapper) Get(dest any, query string, args ...any) error {
 		}(time.Now())
 	}
 
-	return w.dbw.checkErr(w.tx.GetContext(ctx, dest, query, args...))
+	err := w.dbw.checkErr(w.tx.GetContext(ctx, dest, query, args...))
+	decryptDest(dest)
+	return err
 }
 
 func (w *sqlxTxWrapper) GetBuilder(dest any, builder Builder) error {
@@ -522,7 +540,9 @@ func (w *sqlxTxWrapper) Select(dest any, query string, args ...any) error {
 		}(time.Now())
 	}
 
-	return w.dbw.checkErr(w.tx.SelectContext(ctx, dest, query, args...))
+	err := w.dbw.checkErr(w.tx.SelectContext(ctx, dest, query, args...))
+	decryptDest(dest)
+	return err
 }
 
 func (w *sqlxTxWrapper) SelectBuilder(dest any, builder Builder) error {

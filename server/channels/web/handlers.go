@@ -168,7 +168,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		responseLogFields := []mlog.Field{
 			mlog.String("method", r.Method),
-			mlog.String("url", r.URL.Path),
+			mlog.String("url", redactEmailPath(r.URL.Path)),
 			mlog.String("request_id", requestID),
 		}
 		// if there is a valid session and userID then include the user_id
@@ -599,4 +599,17 @@ func (w *Web) APISessionRequired(h func(*Context, http.ResponseWriter, *http.Req
 		return gzhttp.GzipHandler(handler)
 	}
 	return handler
+}
+
+// redactEmailPath hides the address in /users/email/{email} paths so request logs carry no email.
+func redactEmailPath(p string) string {
+	i := strings.Index(p, "/email/")
+	if i < 0 {
+		return p
+	}
+	rest := p[i+len("/email/"):]
+	if j := strings.Index(rest, "/"); j >= 0 {
+		return p[:i] + "/email/[redacted]" + rest[j:]
+	}
+	return p[:i] + "/email/[redacted]"
 }

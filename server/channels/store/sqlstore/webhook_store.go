@@ -248,12 +248,14 @@ func (s SqlWebhookStore) SaveOutgoing(webhook *model.OutgoingWebhook) (*model.Ou
 		return nil, err
 	}
 
+	stored := *webhook
+	stored.Token = sealed("outgoingwebhooks.token", webhook.Id, webhook.Token)
 	if _, err := s.GetMaster().NamedExec(`INSERT INTO OutgoingWebhooks
 			(Id, Token, CreateAt, UpdateAt, DeleteAt, CreatorId, ChannelId, TeamId, TriggerWords, TriggerWhen,
 			CallbackURLs, DisplayName, Description, ContentType, Username, IconURL)
 			VALUES
 			(:Id, :Token, :CreateAt, :UpdateAt, :DeleteAt, :CreatorId, :ChannelId, :TeamId, :TriggerWords, :TriggerWhen,
-			:CallbackURLs, :DisplayName, :Description, :ContentType, :Username, :IconURL)`, webhook); err != nil {
+			:CallbackURLs, :DisplayName, :Description, :ContentType, :Username, :IconURL)`, &stored); err != nil {
 		return nil, errors.Wrapf(err, "failed to save OutgoingWebhook with id=%s", webhook.Id)
 	}
 
@@ -394,11 +396,13 @@ func (s SqlWebhookStore) PermanentDeleteOutgoingByChannel(channelId string) erro
 func (s SqlWebhookStore) UpdateOutgoing(hook *model.OutgoingWebhook) (*model.OutgoingWebhook, error) {
 	hook.UpdateAt = model.GetMillis()
 
+	stored := *hook
+	stored.Token = sealed("outgoingwebhooks.token", hook.Id, hook.Token)
 	_, err := s.GetMaster().NamedExec(`UPDATE OutgoingWebhooks SET
 			CreateAt = :CreateAt, UpdateAt = :UpdateAt, DeleteAt = :DeleteAt, Token = :Token, CreatorId = :CreatorId,
 			ChannelId = :ChannelId, TeamId = :TeamId, TriggerWords = :TriggerWords, TriggerWhen = :TriggerWhen,
 			CallbackURLs = :CallbackURLs, DisplayName = :DisplayName, Description = :Description,
-			ContentType = :ContentType, Username = :Username, IconURL = :IconURL WHERE Id = :Id`, hook)
+			ContentType = :ContentType, Username = :Username, IconURL = :IconURL WHERE Id = :Id`, &stored)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to update OutgoingWebhook with id=%s", hook.Id)
 	}

@@ -151,15 +151,26 @@ func (us SqlUserStore) insert(user *model.User) (sql.Result, error) {
 		(Id, CreateAt, UpdateAt, DeleteAt, Username, Password, AuthData, AuthService,
 			Email, EmailVerified, Nickname, FirstName, LastName, Position, Roles, AllowMarketing,
 			Props, NotifyProps, LastPasswordUpdate, LastPictureUpdate, FailedAttempts,
-			Locale, Timezone, MfaActive, MfaSecret, RemoteId, MfaUsedTimestamps)
+			Locale, Timezone, MfaActive, MfaSecret, RemoteId, MfaUsedTimestamps, EmailHash)
 		VALUES
 		(:Id, :CreateAt, :UpdateAt, :DeleteAt, :Username, :Password, :AuthData, :AuthService,
 			:Email, :EmailVerified, :Nickname, :FirstName, :LastName, :Position, :Roles, :AllowMarketing,
 			:Props, :NotifyProps, :LastPasswordUpdate, :LastPictureUpdate, :FailedAttempts,
-			:Locale, :Timezone, :MfaActive, :MfaSecret, :RemoteId, :MfaUsedTimestamps)`
+			:Locale, :Timezone, :MfaActive, :MfaSecret, :RemoteId, :MfaUsedTimestamps, :EmailHash)`
 
 	user.Props = wrapBinaryParamStringMap(us.IsBinaryParamEnabled(), user.Props)
-	return us.GetMaster().NamedExec(query, user)
+	sealedUser, hash, tokenRows := sealUser(user)
+	res, err := us.GetMaster().NamedExec(query, userWithEmailHash{sealedUser, hash})
+	if err != nil {
+		return nil, err
+	}
+	return res, us.replaceUserSearchTokens(user.Id, tokenRows)
+}
+
+// userWithEmailHash adds the EmailHash column to named user writes.
+type userWithEmailHash struct {
+	*model.User
+	EmailHash string
 }
 
 func (us SqlUserStore) InsertUsers(users []*model.User) error {
@@ -186,8 +197,8 @@ func (us SqlUserStore) Save(rctx request.CTX, user *model.User) (*model.User, er
 	}
 
 	if _, err := us.insert(user); err != nil {
-		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique"}) {
-			return nil, store.NewErrInvalidInput("User", "email", user.Email)
+		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique", "idx_users_emailhash_unique"}) {
+			return nil, store.NewErrInvalidInput("User", "email", user.Id)
 		}
 		if IsUniqueConstraintError(err, []string{"Username", "users_username_key", "idx_users_username_unique"}) {
 			return nil, store.NewErrInvalidInput("User", "username", user.Username)
@@ -328,13 +339,18 @@ func (us SqlUserStore) Update(rctx request.CTX, user *model.User, trustedUpdateD
 				AllowMarketing=:AllowMarketing, Props=:Props, NotifyProps=:NotifyProps,
 				LastPasswordUpdate=:LastPasswordUpdate, LastPictureUpdate=:LastPictureUpdate,
 				FailedAttempts=:FailedAttempts,Locale=:Locale, Timezone=:Timezone, MfaActive=:MfaActive,
-				MfaSecret=:MfaSecret, RemoteId=:RemoteId, LastLogin=:LastLogin, MfaUsedTimestamps=:MfaUsedTimestamps
+				MfaSecret=:MfaSecret, RemoteId=:RemoteId, LastLogin=:LastLogin, MfaUsedTimestamps=:MfaUsedTimestamps,
+				EmailHash=:EmailHash
 			WHERE Id=:Id`
 
 	user.Props = wrapBinaryParamStringMap(us.IsBinaryParamEnabled(), user.Props)
-	res, err := us.GetMaster().NamedExec(updateQuery, user)
+	sealedUser, hash, tokenRows := sealUser(user)
+	res, err := us.GetMaster().NamedExec(updateQuery, userWithEmailHash{sealedUser, hash})
+	if err == nil {
+		err = us.replaceUserSearchTokens(user.Id, tokenRows)
+	}
 	if err != nil {
-		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique"}) {
+		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique", "idx_users_emailhash_unique"}) {
 			return nil, store.NewErrConflict("Email", err, user.Email)
 		}
 		if IsUniqueConstraintError(err, []string{"Username", "users_username_key", "idx_users_username_unique"}) {
@@ -477,7 +493,9 @@ func (us SqlUserStore) UpdateAuthData(userId string, service string, authData *s
 		Set("AuthData", authData).
 		Where(sq.Eq{"Id": userId})
 
-	if email != "" {
+	if email != "" && msgCipher != nil {
+		updateQuery = updateQuery.Set("Email", sealed("users.email", userId, strings.ToLower(email))).Set("EmailHash", emailHash(email))
+	} else if email != "" {
 		updateQuery = updateQuery.Set("Email", sq.Expr("lower(?)", email))
 	}
 
@@ -488,12 +506,30 @@ func (us SqlUserStore) UpdateAuthData(userId string, service string, authData *s
 	}
 
 	if _, err := us.GetMaster().ExecBuilder(updateQuery); err != nil {
-		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique", "AuthData", "users_authdata_key"}) {
+		if IsUniqueConstraintError(err, []string{"Email", "users_email_key", "idx_users_email_unique", "idx_users_emailhash_unique", "AuthData", "users_authdata_key"}) {
 			return "", store.NewErrInvalidInput("User", "id", userId)
 		}
 		return "", errors.Wrapf(err, "failed to update User with userId=%s", userId)
 	}
+	if email != "" {
+		if err := us.reindexUser(userId); err != nil {
+			return "", err
+		}
+	}
 	return userId, nil
+}
+
+// reindexUser rebuilds the search tokens of a user whose PII changed outside Save/Update.
+func (us SqlUserStore) reindexUser(userID string) error {
+	if msgCipher == nil {
+		return nil
+	}
+	var u model.User
+	if err := us.GetMaster().Get(&u, "SELECT Id, Email, FirstName, LastName, Nickname, Position, MfaSecret FROM Users WHERE Id = ?", userID); err != nil {
+		return errors.Wrapf(err, "failed to read User with userId=%s", userID)
+	}
+	_, _, rows := sealUser(&u)
+	return us.replaceUserSearchTokens(userID, rows)
 }
 
 func (us SqlUserStore) UpdateLastLogin(userId string, lastLogin int64) error {
@@ -533,6 +569,19 @@ func (us SqlUserStore) ResetAuthDataToEmailForUsers(service string, userIDs []st
 		err := us.GetReplica().GetBuilder(&numAffected, builder)
 		return numAffected, err
 	}
+	if msgCipher != nil {
+		// Email is ciphertext in the database, so copy the decrypted value row by row.
+		var users []*model.User
+		if err := us.GetMaster().SelectBuilder(&users, us.getQueryBuilder().Select("Id", "Email").From("Users").Where(whereEquals)); err != nil {
+			return 0, errors.Wrap(err, "failed to read users' Email")
+		}
+		for _, u := range users {
+			if _, err := us.GetMaster().ExecBuilder(us.getQueryBuilder().Update("Users").Set("AuthData", u.Email).Where(sq.Eq{"Id": u.Id})); err != nil {
+				return 0, errors.Wrap(err, "failed to update users' AuthData")
+			}
+		}
+		return len(users), nil
+	}
 	builder := us.getQueryBuilder().
 		Update("Users").
 		Set("AuthData", sq.Expr("Email")).
@@ -548,7 +597,7 @@ func (us SqlUserStore) ResetAuthDataToEmailForUsers(service string, userIDs []st
 func (us SqlUserStore) UpdateMfaSecret(userId, secret string) error {
 	updateAt := model.GetMillis()
 
-	if _, err := us.GetMaster().Exec("UPDATE Users SET MfaSecret = ?, MfaUsedTimestamps = ?, UpdateAt = ? WHERE Id = ?", secret, model.StringArray{}, updateAt, userId); err != nil {
+	if _, err := us.GetMaster().Exec("UPDATE Users SET MfaSecret = ?, MfaUsedTimestamps = ?, UpdateAt = ? WHERE Id = ?", sealed("users.mfasecret", userId, secret), model.StringArray{}, updateAt, userId); err != nil {
 		return errors.Wrapf(err, "failed to update User with userId=%s", userId)
 	}
 
@@ -1281,7 +1330,7 @@ func (us SqlUserStore) GetSystemAdminProfiles() (map[string]*model.User, error) 
 }
 
 func (us SqlUserStore) GetByEmail(email string) (*model.User, error) {
-	query := us.usersQuery.Where("Email = lower(?)", email)
+	query := us.usersQuery.Where(emailEquals("Email", email))
 
 	queryString, args, err := query.ToSql()
 	if err != nil {
@@ -1423,11 +1472,11 @@ func (us SqlUserStore) GetByUsername(username string) (*model.User, error) {
 func (us SqlUserStore) GetForLogin(loginId string, allowSignInWithUsername, allowSignInWithEmail bool) (*model.User, error) {
 	query := us.usersQuery
 	if allowSignInWithUsername && allowSignInWithEmail {
-		query = query.Where("Username = lower(?) OR Email = lower(?)", loginId, loginId)
+		query = query.Where(sq.Or{sq.Expr("Username = lower(?)", loginId), emailEquals("Email", loginId)})
 	} else if allowSignInWithUsername {
 		query = query.Where("Username = lower(?)", loginId)
 	} else if allowSignInWithEmail {
-		query = query.Where("Email = lower(?)", loginId)
+		query = query.Where(emailEquals("Email", loginId))
 	} else {
 		return nil, errors.New("sign in with username and email are disabled")
 	}
@@ -1455,6 +1504,12 @@ func (us SqlUserStore) GetForLogin(loginId string, allowSignInWithUsername, allo
 
 func (us SqlUserStore) VerifyEmail(userId, email string) (string, error) {
 	curTime := model.GetMillis()
+	if msgCipher != nil {
+		if _, err := us.GetMaster().Exec("UPDATE Users SET Email = ?, EmailHash = ?, EmailVerified = true, UpdateAt = ? WHERE Id = ?", sealed("users.email", userId, strings.ToLower(email)), emailHash(email), curTime, userId); err != nil {
+			return "", errors.Wrapf(err, "failed to update Users with userId=%s", userId)
+		}
+		return userId, us.reindexUser(userId)
+	}
 	if _, err := us.GetMaster().Exec("UPDATE Users SET Email = lower(?), EmailVerified = true, UpdateAt = ? WHERE Id = ?", email, curTime, userId); err != nil {
 		return "", errors.Wrapf(err, "failed to update Users with userId=%s and email=%s", userId, email)
 	}
@@ -1760,6 +1815,11 @@ func generateSearchQuery(query sq.SelectBuilder, terms []string, fields []string
 		searchFields := []string{}
 		termArgs := []any{}
 		for _, field := range fields {
+			if clause, arg, ok := userPIIClause(field, term); ok {
+				searchFields = append(searchFields, clause)
+				termArgs = append(termArgs, arg)
+				continue
+			}
 			searchFields = append(searchFields, fmt.Sprintf("lower(%s) LIKE lower(?) escape '*' ", field))
 			termArgs = append(termArgs, fmt.Sprintf("%%%s%%", strings.TrimLeft(term, "@")))
 		}
@@ -1837,6 +1897,20 @@ func (us SqlUserStore) AnalyticsGetInactiveUsersCount() (int64, error) {
 }
 
 func (us SqlUserStore) AnalyticsGetExternalUsers(hostDomain string) (bool, error) {
+	if msgCipher != nil {
+		// Emails are ciphertext, so the domain check runs on the decrypted values.
+		var emails []string
+		if err := us.GetReplica().Select(&emails, "SELECT Email FROM Users"); err != nil {
+			return false, errors.Wrap(err, "failed to read Users emails")
+		}
+		suffix := "@" + strings.ToLower(hostDomain)
+		for _, e := range emails {
+			if !strings.HasSuffix(strings.ToLower(e), suffix) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
 	var count int64
 	err := us.GetReplica().Get(&count, "SELECT COUNT(Id) FROM Users WHERE LOWER(Email) NOT LIKE ?", "%@"+strings.ToLower(hostDomain))
 	if err != nil {
@@ -2411,6 +2485,10 @@ func (us SqlUserStore) GetUsersWithInvalidEmails(page int, perPage int, restrict
 		Where("Users.DeleteAt = 0").
 		Where("(Users.AuthService = '' OR Users.AuthService IS NULL)")
 
+	if msgCipher != nil {
+		return us.usersWithInvalidEmailsDecrypted(query, page, perPage, domainArray)
+	}
+
 	for _, d := range domainArray {
 		if d != "" {
 			query = query.Where("Users.Email NOT LIKE LOWER(?)", wildcardSearchTerm(d))
@@ -2597,4 +2675,28 @@ func (us SqlUserStore) GetUserReport(filter *model.UserReportOptions) ([]*model.
 	}
 
 	return userResults, nil
+}
+
+// usersWithInvalidEmailsDecrypted filters and pages in Go because emails are ciphertext in the database.
+// ponytail: loads every candidate user; fine for this admin-only report.
+func (us SqlUserStore) usersWithInvalidEmailsDecrypted(query sq.SelectBuilder, page, perPage int, domains []string) ([]*model.User, error) {
+	candidates := []*model.User{}
+	if err := us.GetReplica().SelectBuilder(&candidates, query.OrderBy("Users.Id")); err != nil {
+		return nil, errors.Wrap(err, "users_get_many_select")
+	}
+	users := []*model.User{}
+	for _, u := range candidates {
+		valid := false
+		for _, d := range domains {
+			if d != "" && strings.Contains(strings.ToLower(u.Email), strings.ToLower(d)) {
+				valid = true
+			}
+		}
+		if !valid {
+			u.Sanitize(map[string]bool{})
+			users = append(users, u)
+		}
+	}
+	start := min(page*perPage, len(users))
+	return users[start:min(start+perPage, len(users))], nil
 }

@@ -57,10 +57,15 @@ func (me SqlSessionStore) Save(rctx request.CTX, session *model.Session) (*model
 		jsonProps = AppendBinaryFlag(jsonProps)
 	}
 
+	storedToken := session.Token
+	if !session.IsOAuth {
+		storedToken = hashToken(session.Token)
+	}
+
 	query, args, err := me.getQueryBuilder().
 		Insert("Sessions").
 		Columns("Id", "Token", "CreateAt", "ExpiresAt", "LastActivityAt", "UserId", "DeviceId", "VoIPDeviceId", "Roles", "IsOAuth", "ExpiredNotify", "Props").
-		Values(session.Id, session.Token, session.CreateAt, session.ExpiresAt, session.LastActivityAt, session.UserId, session.DeviceId, session.VoIPDeviceId, session.Roles, session.IsOAuth, session.ExpiredNotify, jsonProps).
+		Values(session.Id, storedToken, session.CreateAt, session.ExpiresAt, session.LastActivityAt, session.UserId, session.DeviceId, session.VoIPDeviceId, session.Roles, session.IsOAuth, session.ExpiredNotify, jsonProps).
 		ToSql()
 	if err != nil {
 		return nil, errors.Wrap(err, "sessions_tosql")
@@ -87,9 +92,13 @@ func (me SqlSessionStore) Save(rctx request.CTX, session *model.Session) (*model
 func (me SqlSessionStore) Get(rctx request.CTX, sessionIdOrToken string) (*model.Session, error) {
 	sessions := []*model.Session{}
 
+	// Non-OAuth tokens are stored hashed. A raw match is only allowed for OAuth sessions,
+	// whose token is shared with OAuthAccessData; otherwise a stored hash would work as a credential.
+	tokenHash := hashToken(sessionIdOrToken)
 	query := me.sessionSelectQuery.
 		Where(sq.Or{
-			sq.Eq{"Token": sessionIdOrToken},
+			sq.Eq{"Token": tokenHash},
+			sq.And{sq.Eq{"Token": sessionIdOrToken}, sq.Eq{"IsOAuth": true}},
 			sq.Eq{"Id": sessionIdOrToken},
 		}).
 		Limit(1)
@@ -101,12 +110,16 @@ func (me SqlSessionStore) Get(rctx request.CTX, sessionIdOrToken string) (*model
 
 	err = me.DBXFromContext(rctx.Context()).Select(&sessions, sql, args...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to find Sessions with sessionIdOrToken=%s", sessionIdOrToken)
+		return nil, errors.Wrap(err, "failed to find Sessions")
 	}
 	if len(sessions) == 0 {
-		return nil, store.NewErrNotFound("Session", fmt.Sprintf("sessionIdOrToken=%s", sessionIdOrToken))
+		return nil, store.NewErrNotFound("Session", "sessionIdOrToken")
 	}
 	session := sessions[0]
+	if session.Token == tokenHash {
+		// Callers compare and cache by the token they presented.
+		session.Token = sessionIdOrToken
+	}
 
 	tempMembers, err := me.Team().GetTeamsForUser(
 		RequestContextWithMaster(rctx),
@@ -288,9 +301,9 @@ func (me SqlSessionStore) UpdateExpiredNotify(sessionId string, notified bool) e
 }
 
 func (me SqlSessionStore) Remove(sessionIdOrToken string) error {
-	_, err := me.GetMaster().Exec("DELETE FROM Sessions WHERE Id = ? Or Token = ?", sessionIdOrToken, sessionIdOrToken)
+	_, err := me.GetMaster().Exec("DELETE FROM Sessions WHERE Id = ? OR Token = ? OR Token = ?", sessionIdOrToken, sessionIdOrToken, hashToken(sessionIdOrToken))
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete Session with sessionIdOrToken=%s", sessionIdOrToken)
+		return errors.Wrap(err, "failed to delete Session")
 	}
 	return nil
 }

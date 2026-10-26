@@ -272,13 +272,15 @@ func (s *SqlPostStore) SaveMultiple(rctx request.CTX, posts []*model.Post) ([]*m
 		}
 	}
 
+	sealedPosts, tokenRows := sealPosts(posts...)
+
 	transaction, err := s.GetMaster().Begin()
 	if err != nil {
 		return posts, -1, errors.Wrap(err, "begin_transaction")
 	}
 	defer finalizeTransactionX(transaction, &err)
 
-	chunks := chunkSlice(posts, len(postSliceColumns()), s.SqlStore.getMaxInsertParams())
+	chunks := chunkSlice(sealedPosts, len(postSliceColumns()), s.SqlStore.getMaxInsertParams())
 	for _, chunk := range chunks {
 		builder := s.getQueryBuilder().Insert("Posts").Columns(postSliceColumns()...)
 		for _, post := range chunk {
@@ -287,6 +289,10 @@ func (s *SqlPostStore) SaveMultiple(rctx request.CTX, posts []*model.Post) ([]*m
 		if _, err = transaction.ExecBuilder(builder); err != nil {
 			return nil, -1, errors.Wrap(err, "failed to save Post")
 		}
+	}
+
+	if err = saveSearchTokens(s.SqlStore, transaction, tokenRows); err != nil {
+		return nil, -1, err
 	}
 
 	if err = s.updateThreadsFromPosts(transaction, posts); err != nil {
@@ -434,6 +440,8 @@ func (s *SqlPostStore) Update(rctx request.CTX, newPost *model.Post, oldPost *mo
 	}
 	newPost.ValidateProps(rctx.Logger())
 
+	sealedPosts, tokenRows := sealPosts(newPost, oldPost)
+
 	if _, err := s.GetMaster().NamedExec(`UPDATE Posts
 		SET CreateAt=:CreateAt,
 			UpdateAt=:UpdateAt,
@@ -454,8 +462,12 @@ func (s *SqlPostStore) Update(rctx request.CTX, newPost *model.Post, oldPost *mo
 			RemoteId=:RemoteId
 		WHERE
 			Id=:Id
-		`, newPost); err != nil {
+		`, sealedPosts[0]); err != nil {
 		return nil, errors.Wrapf(err, "failed to update Post with id=%s", newPost.Id)
+	}
+
+	if err := s.replaceSearchTokens(s.GetMaster(), []string{newPost.Id}, tokenRows); err != nil {
+		return nil, err
 	}
 
 	time := model.GetMillis()
@@ -473,7 +485,7 @@ func (s *SqlPostStore) Update(rctx request.CTX, newPost *model.Post, oldPost *mo
 	builder := s.getQueryBuilder().
 		Insert("Posts").
 		Columns(postSliceColumns()...).
-		Values(postToSlice(oldPost)...)
+		Values(postToSlice(sealedPosts[1])...)
 	if _, err := s.GetMaster().ExecBuilder(builder); err != nil {
 		return nil, errors.Wrap(err, "failed to insert the old post")
 	}
@@ -493,13 +505,25 @@ func (s *SqlPostStore) OverwriteMultiple(rctx request.CTX, posts []*model.Post) 
 		post.ValidateProps(rctx.Logger())
 	}
 
+	sealedPosts, tokenRows := sealPosts(posts...)
+
 	tx, err := s.GetMaster().Begin()
 	if err != nil {
 		return nil, -1, errors.Wrap(err, "begin_transaction")
 	}
 	defer finalizeTransactionX(tx, &err)
 
-	for idx, post := range posts {
+	if msgCipher != nil {
+		ids := make([]string, len(posts))
+		for i, p := range posts {
+			ids[i] = p.Id
+		}
+		if err = s.replaceSearchTokens(tx, ids, tokenRows); err != nil {
+			return nil, -1, err
+		}
+	}
+
+	for idx, post := range sealedPosts {
 		if _, err2 := tx.NamedExec(`UPDATE Posts
 				SET CreateAt=:CreateAt,
 					UpdateAt=:UpdateAt,
@@ -2317,6 +2341,14 @@ func (s *SqlPostStore) search(logger mlog.LoggerIFace, teamId string, userId str
 
 	if terms == "" && excludedTerms == "" {
 		// we've already confirmed that we have a channel or user to search for
+	} else if msgCipher != nil {
+		// Messages and hashtags are encrypted at rest: match HMAC hashes instead of full text.
+		sub := "q2.Id IN (SELECT PostId FROM PostSearchTokens WHERE TokenHash = ?)"
+		if params.IsHashtag {
+			baseQuery = baseQuery.Where(tokenSearchClause(sub, msgCipher.hashtagHashes(terms), msgCipher.hashtagHashes(excludedTerms), params.OrTerms))
+		} else {
+			baseQuery = baseQuery.Where(tokenSearchClause(sub, msgCipher.queryTokens(terms), msgCipher.queryTokens(excludedTerms), params.OrTerms))
+		}
 	} else if s.getFeatureFlags().CJKSearch && (model.ContainsCJK(terms) || model.ContainsCJK(excludedTerms)) {
 		// CJK characters are not supported by PostgreSQL's to_tsvector/to_tsquery
 		// with the default English text search config. Fall back to LIKE matching.
@@ -2408,6 +2440,10 @@ func (s *SqlPostStore) search(logger mlog.LoggerIFace, teamId string, userId str
 		for _, p := range posts {
 			// exclude burn on read posts from search results
 			if p.Type == model.PostTypeBurnOnRead {
+				continue
+			}
+			// The encrypted index matches words only; check phrases and long prefixes on the plaintext.
+			if msgCipher != nil && !params.IsHashtag && !params.OrTerms && !matchesSearchTerms(p.Message, params.Terms) {
 				continue
 			}
 			if searchType == "Hashtags" {
@@ -2773,6 +2809,8 @@ func (s *SqlPostStore) determineMaxPostSize() int {
 	`); err != nil {
 		mlog.Warn("Unable to determine the maximum supported post size", mlog.Err(err))
 	}
+
+	maxPostSizeBytes = cipherCap(maxPostSizeBytes)
 
 	// Assume a worst-case representation of four bytes per rune.
 	maxPostSize := max(int(maxPostSizeBytes)/4, model.PostMessageMaxRunesV2)

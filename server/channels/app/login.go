@@ -334,6 +334,11 @@ func (a *App) AttachSessionCookies(rctx request.CTX, w http.ResponseWriter, r *h
 		Secure:  secure,
 	}
 
+	// Lax by name (browsers default to it, but an explicit value is what a cookie audit checks: SEC-23); embedded
+	// clients under TLS still need None.
+	sessionCookie.SameSite = http.SameSiteLaxMode
+	userCookie.SameSite = http.SameSiteLaxMode
+	csrfCookie.SameSite = http.SameSiteLaxMode
 	if secure && utils.CheckEmbeddedCookie(r) {
 		sessionCookie.SameSite = http.SameSiteNoneMode
 		userCookie.SameSite = http.SameSiteNoneMode

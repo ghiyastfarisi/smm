@@ -8,7 +8,7 @@
     "description": "Edition name displayed in the About Mattermost dialog for Mattermost Cloud instances."
   },
   "about.copyright": {
-    "defaultMessage": "Copyright 2015 - {currentYear} Mattermost, Inc. All rights reserved",
+    "defaultMessage": "SMM © {currentYear} SMM contributors. Upstream code copyright 2015 - {currentYear} Mattermost, Inc.",
     "description": "Copyright line in the About Mattermost dialog; {currentYear} is the current year."
   },
   "about.database": {
@@ -56,7 +56,7 @@
     "description": "Field label in the About Mattermost dialog; the license load metric value follows the colon."
   },
   "about.notice": {
-    "defaultMessage": "Mattermost is made possible by the open source software used in our <linkServer>server</linkServer>, <linkDesktop>desktop</linkDesktop> and <linkMobile>mobile</linkMobile> apps.",
+    "defaultMessage": "SMM is based on Mattermost (AGPL) and is not affiliated with Mattermost, Inc. Mattermost is a trademark of Mattermost, Inc. It is made possible by the open source software used in the <linkServer>server</linkServer>, <linkDesktop>desktop</linkDesktop> and <linkMobile>mobile</linkMobile> apps.",
     "description": "Open-source notice in the About Mattermost dialog; the <linkServer>, <linkDesktop> and <linkMobile> tags wrap the words that become links to each project's license page."
   },
   "about.planNameLearn": {
@@ -84,7 +84,7 @@
     "description": "Field label in the About Mattermost dialog; the server version follows the colon."
   },
   "about.teamEditionLearn": {
-    "defaultMessage": "Join the Mattermost community at ",
+    "defaultMessage": "Based on Mattermost Team Edition, an open source project (AGPL) by Mattermost, Inc. at ",
     "description": "Sentence in the About Mattermost dialog for Team Edition; a community URL is appended directly after it, so the trailing space matters."
   },
   "about.teamEditionSt": {
@@ -284,7 +284,7 @@
     "description": "Detail line in an expanded session row; {id} is the technical session identifier."
   },
   "activity_log.sessionsDescription": {
-    "defaultMessage": "Sessions are created when you log in through a new browser on a device. Sessions let you use Mattermost without having to log in again for a time period specified by the system administrator. To end the session sooner, use the 'Log Out' button.",
+    "defaultMessage": "Sessions are created when you log in through a new browser on a device. Sessions let you use SMM without having to log in again for a time period specified by the system administrator. To end the session sooner, use the 'Log Out' button.",
     "description": "Explanatory paragraph at the top of the Active Sessions modal describing what sessions are; mentions the 'Log Out' button by name."
   },
   "add_command.autocomplete": {
@@ -18224,7 +18224,7 @@
     "description": "Checkbox option label ('Enabled') for the post:all permission on the Add/Edit Bot Account page; compact space."
   },
   "bot.add.post_all.help": {
-    "defaultMessage": "Bot will have access to post to all Mattermost channels including direct messages.",
+    "defaultMessage": "Bot will have access to post to all SMM channels including direct messages.",
     "description": "Help text for the post:all permission checkbox on the Add/Edit Bot Account page, explaining the bot can post to any channel including direct messages."
   },
   "bot.add.post_channels": {
@@ -18236,7 +18236,7 @@
     "description": "Checkbox option label ('Enabled') for the post:channels permission on the Add/Edit Bot Account page; compact space."
   },
   "bot.add.post_channels.help": {
-    "defaultMessage": "Bot will have access to post to all Mattermost public channels.",
+    "defaultMessage": "Bot will have access to post to all SMM public channels.",
     "description": "Help text for the post:channels permission checkbox on the Add/Edit Bot Account page, explaining the bot can post to public channels."
   },
   "bot.add.role": {
@@ -18360,7 +18360,7 @@
     "description": "Confirmation text after a bot account is created; {botname} is the bot's name (bold via <strong>) and <link> wraps a documentation link."
   },
   "bots.manage.description": {
-    "defaultMessage": "Use bot accounts to integrate with Mattermost through plugins or the API",
+    "defaultMessage": "Use bot accounts to integrate with SMM through plugins or the API",
     "description": "Short description under the Bot Accounts tile on the team Integrations landing page."
   },
   "bots.manage.edit": {
@@ -18384,7 +18384,7 @@
     "description": "Page header/breadcrumb link for the Bot Accounts section of the team Integrations backstage."
   },
   "bots.manage.help1": {
-    "defaultMessage": "Use {botAccounts} to integrate with Mattermost through plugins or the API. Bot accounts are available to everyone on your server. ",
+    "defaultMessage": "Use {botAccounts} to integrate with SMM through plugins or the API. Bot accounts are available to everyone on your server. ",
     "description": "Help text at the top of the Bot Accounts page; {botAccounts} is replaced by a documentation link labeled 'Bot Accounts'. Keep the trailing space, the next sentence is concatenated after it."
   },
   "bots.manage.load_error.full": {
@@ -19328,7 +19328,7 @@
     "description": "Fragment appended (note the leading space) after the sender's name in a desktop notification body when the message contains an image."
   },
   "channel_loader.socketError": {
-    "defaultMessage": "Please check connection, Mattermost unreachable. If issue persists, ask administrator to [check WebSocket port](!https://docs.mattermost.com/install/troubleshooting.html#please-check-connection-mattermost-unreachable-if-issue-persists-ask-administrator-to-check-websocket-port).",
+    "defaultMessage": "Please check connection, SMM unreachable. If issue persists, ask administrator to [check WebSocket port](!https://docs.mattermost.com/install/troubleshooting.html#please-check-connection-mattermost-unreachable-if-issue-persists-ask-administrator-to-check-websocket-port).",
     "description": "Error shown in the announcement bar when the WebSocket connection to the server fails; supports markdown and the bracketed text becomes a documentation link, keep the link syntax intact."
   },
   "channel_loader.someone": {
@@ -19640,7 +19640,7 @@
     "description": "Subsection heading in the channel notification preferences modal for the notification sound options."
   },
   "channel_notifications.desktopNotificationsDesc": {
-    "defaultMessage": "Available on Chrome, Edge, Firefox, and the Mattermost Desktop App.",
+    "defaultMessage": "Available on Chrome, Edge, Firefox, and the SMM Desktop App.",
     "description": "Help text under the Desktop Notifications heading in the channel notification preferences modal, listing supported browsers/apps (product names, do not translate)."
   },
   "channel_notifications.desktopNotificationsTitle": {
@@ -19660,7 +19660,7 @@
     "description": "Value shown on the 'Show' submenu of the Direct Messages category menu when all direct message conversations are displayed (no limit)."
   },
   "channel_notifications.mobileNotificationsDesc": {
-    "defaultMessage": "Notification alerts are pushed to your mobile device when there is activity in Mattermost.",
+    "defaultMessage": "Notification alerts are pushed to your mobile device when there is activity in SMM.",
     "description": "Help text under the Mobile Notifications heading in the channel notification preferences modal."
   },
   "channel_notifications.mobileNotificationsTitle": {
@@ -21648,11 +21648,11 @@
     "description": "Title of the confirmation modal for demoting a user to a guest; {username} is the affected user's username."
   },
   "desktop_auth_token.complete.havingTrouble": {
-    "defaultMessage": "Having trouble logging in? <a>Open Mattermost in your browser</a>",
+    "defaultMessage": "Having trouble logging in? <a>Open SMM in your browser</a>",
     "description": "Help line on the desktop-app login handoff screen; <a> wraps a link that opens Mattermost in the web browser instead."
   },
   "desktop_auth_token.complete.openMattermost": {
-    "defaultMessage": "Click on <b>Open Mattermost</b> in the browser prompt to <a>launch the desktop app</a>",
+    "defaultMessage": "Click on <b>Open SMM</b> in the browser prompt to <a>launch the desktop app</a>",
     "description": "Instruction shown during the desktop-app login flow; <b> highlights the button name in the browser's prompt and <a> wraps a link that launches the desktop app."
   },
   "desktop_auth_token.complete.youAreNowLoggedIn": {
@@ -22248,11 +22248,11 @@
     "description": "Third bullet in the list of suggested fixes on the local-storage error page; lists supported browser versions."
   },
   "error.local_storage.message": {
-    "defaultMessage": "Mattermost was unable to load because a setting in your browser prevents the use of its local storage features. To allow Mattermost to load, try the following actions:",
+    "defaultMessage": "SMM was unable to load because a setting in your browser prevents the use of its local storage features. To allow SMM to load, try the following actions:",
     "description": "Body text of the error page shown when the app cannot load because browser local storage is disabled; followed by a bulleted list of fixes."
   },
   "error.local_storage.title": {
-    "defaultMessage": "Cannot Load Mattermost",
+    "defaultMessage": "Cannot Load SMM",
     "description": "Title of the error page shown when the app cannot load due to disabled browser local storage."
   },
   "error.magic_link_already_logged_in.message": {
@@ -22356,19 +22356,19 @@
     "description": "Title of the error modal shown when a user data export could not be started."
   },
   "export_user_data_modal.dange_range.all_time": {
-    "defaultMessage": "You're about to export user data for all time. When the export is ready, a CSV file will be sent to you in a Mattermost direct message. This export will take a few minutes.",
+    "defaultMessage": "You're about to export user data for all time. When the export is ready, a CSV file will be sent to you in a SMM direct message. This export will take a few minutes.",
     "description": "Body of the export confirmation modal on the System Console users page when the 'All time' date range is selected; explains the CSV report is delivered via direct message."
   },
   "export_user_data_modal.dange_range.last_30_days": {
-    "defaultMessage": "You're about to export user data for the last 30 days. When the export is ready, a CSV file will be sent to you in a Mattermost direct message. This export will take a few minutes.",
+    "defaultMessage": "You're about to export user data for the last 30 days. When the export is ready, a CSV file will be sent to you in a SMM direct message. This export will take a few minutes.",
     "description": "Body of the export confirmation modal on the System Console users page when the 'Last 30 days' date range is selected; explains the CSV report is delivered via direct message."
   },
   "export_user_data_modal.dange_range.last_6_months": {
-    "defaultMessage": "You're about to export user data for the last 6 months. When the export is ready, a CSV file will be sent to you in a Mattermost direct message. This export will take a few minutes.",
+    "defaultMessage": "You're about to export user data for the last 6 months. When the export is ready, a CSV file will be sent to you in a SMM direct message. This export will take a few minutes.",
     "description": "Body of the export confirmation modal on the System Console users page when the 'Last 6 months' date range is selected; explains the CSV report is delivered via direct message."
   },
   "export_user_data_modal.dange_range.previous_month": {
-    "defaultMessage": "You're about to export user data for the previous month. When the export is ready, a CSV file will be sent to you in a Mattermost direct message. This export will take a few minutes.",
+    "defaultMessage": "You're about to export user data for the previous month. When the export is ready, a CSV file will be sent to you in a SMM direct message. This export will take a few minutes.",
     "description": "Body of the export confirmation modal on the System Console users page when the 'Previous month' date range is selected; explains the CSV report is delivered via direct message."
   },
   "export_user_data_modal.do_not_show": {
@@ -22984,7 +22984,7 @@
     "description": "Accessibility title for an envelope/mail icon."
   },
   "generic_icons.mattermost": {
-    "defaultMessage": "Mattermost Logo",
+    "defaultMessage": "SMM Logo",
     "description": "Accessibility title for the Mattermost logo; Mattermost is the product name."
   },
   "generic_icons.member": {
@@ -23144,7 +23144,7 @@
     "description": "Main heading (h1) of the landing page asking the user to choose between viewing the link in the app or the browser."
   },
   "get_app.openingLink": {
-    "defaultMessage": "Opening link in Mattermost...",
+    "defaultMessage": "Opening link in SMM...",
     "description": "Heading shown on the landing page while a link is being handed off to the Mattermost desktop app; 'Mattermost' is the product name."
   },
   "get_app.openingLinkWhiteLabel": {
@@ -23392,7 +23392,7 @@
     "description": "Section heading in the attaching-files help page about pasting files from the clipboard."
   },
   "help.attaching.previewer.description": {
-    "defaultMessage": "Mattermost has a built-in file previewer used to view media, download files, and to share public links. Select the thumbnail of an attached file to open it in the file previewer.",
+    "defaultMessage": "SMM has a built-in file previewer used to view media, download files, and to share public links. Select the thumbnail of an attached file to open it in the file previewer.",
     "description": "Paragraph in the attaching-files help page describing the built-in file preview window."
   },
   "help.attaching.previewer.title": {
@@ -23400,7 +23400,7 @@
     "description": "Section heading in the attaching-files help page about the file preview window."
   },
   "help.attaching.public.description": {
-    "defaultMessage": "Public links enable you to share file attachments with people outside your Mattermost team. Open the file previewer by selecting the thumbnail of an attachment, then select <b>Get a public link</b>. Copy the link provided. When the link is shared and opened by another user, the file automatically downloads.",
+    "defaultMessage": "Public links enable you to share file attachments with people outside your SMM team. Open the file previewer by selecting the thumbnail of an attachment, then select <b>Get a public link</b>. Copy the link provided. When the link is shared and opened by another user, the file automatically downloads.",
     "description": "Paragraph in the attaching-files help page about sharing files via public links; <b> wraps a UI option name."
   },
   "help.attaching.public.note": {
@@ -23412,7 +23412,7 @@
     "description": "Section heading in the attaching-files help page about public file links."
   },
   "help.attaching.size.description": {
-    "defaultMessage": "Mattermost supports up to ten files attached per post. The default maximum file size is 100 MB (megabytes), but this can be changed by your System Admin. Image files can be a maximum size of 7680 pixels x 4320 pixels, with a maximum image resolution of 33 MP (mega pixels) or 8K resolution, and a maximum raw image file size of approximately 253 MB.",
+    "defaultMessage": "SMM supports up to ten files attached per post. The default maximum file size is 100 MB (megabytes), but this can be changed by your System Admin. Image files can be a maximum size of 7680 pixels x 4320 pixels, with a maximum image resolution of 33 MP (mega pixels) or 8K resolution, and a maximum raw image file size of approximately 253 MB.",
     "description": "Paragraph in the attaching-files help page describing file count and size limits; MB, MP, and 8K are technical units."
   },
   "help.attaching.size.title": {
@@ -23424,7 +23424,7 @@
     "description": "Bullet item in the help page listing supported audio file formats; format names are literal."
   },
   "help.attaching.supported.description": {
-    "defaultMessage": "If you are trying to preview a media type that is not supported, the file previewer opens a standard media attachment icon. Supported media formats depend heavily on your browser and operating system. The following formats are supported by Mattermost on most browsers:",
+    "defaultMessage": "If you are trying to preview a media type that is not supported, the file previewer opens a standard media attachment icon. Supported media formats depend heavily on your browser and operating system. The following formats are supported by SMM on most browsers:",
     "description": "Paragraph in the attaching-files help page introducing the list of previewable media formats."
   },
   "help.attaching.supported.documents": {
@@ -23452,7 +23452,7 @@
     "description": "Page title of the in-app help page about attaching files; also used as the browser tab title."
   },
   "help.commands.builtin.description": {
-    "defaultMessage": "Built-in slash commands come with all Mattermost installations. See the <link>product documentation</link> for a list of available built-in slash commands.",
+    "defaultMessage": "Built-in slash commands come with all SMM installations. See the <link>product documentation</link> for a list of available built-in slash commands.",
     "description": "Paragraph in the slash commands help page; <link> wraps a link to the product documentation."
   },
   "help.commands.builtin.howto": {
@@ -23500,7 +23500,7 @@
     "description": "All-caps column/section header above the example slash commands list in the help page; compact space."
   },
   "help.commands.intro": {
-    "defaultMessage": "You can execute commands, called slash commands, by typing into the text input box to perform operations in Mattermost. To run a slash command, type <code>/</code> followed by a command and some arguments to perform actions.",
+    "defaultMessage": "You can execute commands, called slash commands, by typing into the text input box to perform operations in SMM. To run a slash command, type <code>/</code> followed by a command and some arguments to perform actions.",
     "description": "Opening paragraph of the slash commands help page; <code> wraps the literal '/' character."
   },
   "help.commands.title": {
@@ -23636,7 +23636,7 @@
     "description": "Section heading in the Markdown formatting help page about bold and italic text."
   },
   "help.formatting.syntax.description": {
-    "defaultMessage": "To add syntax highlighting, type the language to be highlighted after the <code>```</code> at the beginning of the code block. Mattermost also offers four different code themes (GitHub, Solarized Dark, Solarized Light, Monokai) that can be changed in <b>Settings > Display > Theme > Custom Theme > Center Channel Styles > Code Theme</b>.",
+    "defaultMessage": "To add syntax highlighting, type the language to be highlighted after the <code>```</code> at the beginning of the code block. SMM also offers four different code themes (GitHub, Solarized Dark, Solarized Light, Monokai) that can be changed in <b>Settings > Display > Theme > Custom Theme > Center Channel Styles > Code Theme</b>.",
     "description": "Paragraph in the formatting help page about code syntax highlighting; <code> wraps literal backticks and <b> wraps a Settings menu path; theme names are proper nouns."
   },
   "help.formatting.syntax.example_label": {
@@ -23744,7 +23744,7 @@
     "description": "Paragraph in the mentions help page about mentioning individual users; <code> wraps the literal '@' character."
   },
   "help.mentioning.username.description2": {
-    "defaultMessage": "Type <code>@</code> to bring up a list of team members who can be mentioned. To filter the list, type the first few letters of any username, first name, last name, or nickname. The Up and Down arrow keys can then be used to scroll through entries in the list, and pressing ENTER will select which user to mention. Once selected, the username will automatically replace the full name or nickname. The following example sends a special mention notification to alice that alerts her of the channel and message where she has been mentioned. If alice is away from Mattermost and has email notifications turned on, then she will receive an email alert of her mention along with the message text.",
+    "defaultMessage": "Type <code>@</code> to bring up a list of team members who can be mentioned. To filter the list, type the first few letters of any username, first name, last name, or nickname. The Up and Down arrow keys can then be used to scroll through entries in the list, and pressing ENTER will select which user to mention. Once selected, the username will automatically replace the full name or nickname. The following example sends a special mention notification to alice that alerts her of the channel and message where she has been mentioned. If alice is away from SMM and has email notifications turned on, then she will receive an email alert of her mention along with the message text.",
     "description": "Paragraph in the in-app help page about @-mentioning teammates; <code>@</code> is HTML markup to keep, and 'alice' is an example username."
   },
   "help.mentioning.username.not_in_channel": {
@@ -23756,7 +23756,7 @@
     "description": "Section heading in the mentions help page; '@Username' is the literal mention pattern."
   },
   "help.messaging.attach.description": {
-    "defaultMessage": "Drag and drop files into Mattermost, or select the Attachment icon in the text input box.",
+    "defaultMessage": "Drag and drop files into SMM, or select the Attachment icon in the text input box.",
     "description": "Short paragraph in the messaging basics help page about attaching files."
   },
   "help.messaging.attach.title": {
@@ -23808,7 +23808,7 @@
     "description": "Page title of the in-app help page covering messaging basics; also used as browser tab title."
   },
   "help.messaging.write.description": {
-    "defaultMessage": "Use the text input box at the bottom of the Mattermost interface to write a message. Press <b>ENTER</b> to send the message. Use <b>SHIFT+ENTER</b> to create a new line without sending a message.",
+    "defaultMessage": "Use the text input box at the bottom of the SMM interface to write a message. Press <b>ENTER</b> to send the message. Use <b>SHIFT+ENTER</b> to create a new line without sending a message.",
     "description": "Paragraph in the messaging basics help page about composing messages; <b> wraps keyboard key names."
   },
   "help.messaging.write.title": {
@@ -26316,7 +26316,7 @@
     "description": "Title of the onboarding tour tip pointing at the Boards icon in the App Bar after creating a channel with a board."
   },
   "next_steps_view.welcomeToMattermost": {
-    "defaultMessage": "Welcome to Mattermost",
+    "defaultMessage": "Welcome to SMM",
     "description": "Title of the onboarding task list panel greeting new users; 'Mattermost' is the product name."
   },
   "no_results.channel_files_filtered.subtitle": {
@@ -26636,7 +26636,7 @@
     "description": "Generic error shown in the workspace setup wizard when submitting a step fails."
   },
   "onboardingTask.checklist.completed_subtitle": {
-    "defaultMessage": "We hope Mattermost is more familiar now.",
+    "defaultMessage": "We hope SMM is more familiar now.",
     "description": "Subtitle on the onboarding task list completion screen after all tasks are done; 'Mattermost' is the product name."
   },
   "onboardingTask.checklist.completed_title": {
@@ -30156,7 +30156,7 @@
     "description": "Link at the top of the signup page taking existing users to the login page; 'Log in' is a verb phrase."
   },
   "signup_user_completed.subtitle": {
-    "defaultMessage": "Create your Mattermost account to start collaborating with your team",
+    "defaultMessage": "Create your SMM account to start collaborating with your team",
     "description": "Subtitle under the signup page heading."
   },
   "signup_user_completed.title": {
@@ -32556,7 +32556,7 @@
     "description": "Screen reader label for the interface language dropdown selector."
   },
   "user.settings.languages.promote1": {
-    "defaultMessage": "Select which language Mattermost displays in the user interface.",
+    "defaultMessage": "Select which language SMM displays in the user interface.",
     "description": "Help text under the language dropdown explaining what the setting does."
   },
   "user.settings.languages.promote2": {
@@ -32760,7 +32760,7 @@
     "description": "Tertiary button on the desktop app permission notice; opens an external help page about enabling notifications."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionDenied.message": {
-    "defaultMessage": "You're missing important message and call notifications from Mattermost. To start receiving notifications, please enable notifications for Mattermost in your browser settings.",
+    "defaultMessage": "You're missing important message and call notifications from SMM. To start receiving notifications, please enable notifications for SMM in your browser settings.",
     "description": "Body text of a danger notice in notification settings shown when the browser has denied notification permission for Mattermost."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionDenied.title": {
@@ -32772,11 +32772,11 @@
     "description": "Primary button on the desktop app permission notice that re-checks/requests OS notification permission."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionDeniedDesktop.message": {
-    "defaultMessage": "You're missing important message and call notifications from Mattermost. To start receiving them, please enable them manually.",
+    "defaultMessage": "You're missing important message and call notifications from SMM. To start receiving them, please enable them manually.",
     "description": "Body text of a danger notice shown in the desktop app when notification permission has not been granted; 'them' refers to notifications."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionDeniedDesktop.messageDenied": {
-    "defaultMessage": "Notifications for this Mattermost server are blocked. To receive notifications, please enable them manually.",
+    "defaultMessage": "Notifications for this SMM server are blocked. To receive notifications, please enable them manually.",
     "description": "Body text of a notice in notification settings when the browser/OS has blocked notification permission for this Mattermost server; instructs the user to re-enable it manually."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionDeniedDesktop.title": {
@@ -32796,7 +32796,7 @@
     "description": "Button on the notice shown when browser notification permission was never requested; clicking it triggers the browser permission prompt."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionNeverGranted.message": {
-    "defaultMessage": "You're missing important message and call notifications from Mattermost. Mattermost notifications are disabled by this browser.",
+    "defaultMessage": "You're missing important message and call notifications from SMM. SMM notifications are disabled by this browser.",
     "description": "Body text of a danger notice in notification settings shown when the browser has notifications disabled because permission was never granted."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionNeverGranted.title": {
@@ -32808,7 +32808,7 @@
     "description": "Button on the notice shown when the browser does not support the Notification API; links to browser update info."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionUnsupported.message": {
-    "defaultMessage": "You're missing important message and call notifications from Mattermost. To start receiving notifications, please update to a supported browser.",
+    "defaultMessage": "You're missing important message and call notifications from SMM. To start receiving notifications, please update to a supported browser.",
     "description": "Body text of a danger notice shown when the user's browser does not support web notifications."
   },
   "user.settings.notifications.desktopAndMobile.notificationSection.permissionUnsupported.title": {
@@ -33464,7 +33464,7 @@
     "description": "Body of the delete-token confirmation dialog; {description} is the token's user-given name, rendered bold via the <b> tags."
   },
   "user.settings.tokens.confirmDelete.description": {
-    "defaultMessage": "Any integrations using this token will no longer be able to access the Mattermost API. You cannot undo this action.",
+    "defaultMessage": "Any integrations using this token will no longer be able to access the SMM API. You cannot undo this action.",
     "description": "Warning text in the delete-token confirmation dialog explaining the consequences of deletion."
   },
   "user.settings.tokens.confirmDeleteButton": {
@@ -33820,7 +33820,7 @@
     "description": "All-caps section header in the settings modal sidebar grouping tabs added by plugins."
   },
   "version_bar.new": {
-    "defaultMessage": "A new version of Mattermost is available.",
+    "defaultMessage": "A new version of SMM is available.",
     "description": "Announcement banner shown when a newer version of the web app has been deployed on the server."
   },
   "version_bar.refresh": {

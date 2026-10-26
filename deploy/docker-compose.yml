@@ -1,0 +1,150 @@
+# smm: Postgres + OpenBAO + encrypted server (stock web app). Start with: bash deploy/up.sh
+name: mrpostman
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?run deploy/up.sh to create .env}
+      POSTGRES_DB: mrpostman
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "mmuser", "-d", "mrpostman"]
+      interval: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # Key custody: the server reads its root key material from OpenBAO (KV v2), never from its own environment.
+  # Dev mode keeps the KV store in memory and auto-unseals; after a restart openbao-init re-seeds the secret from
+  # deploy/.env. Production: file/raft storage, unseal, AppRole — see openbao/README.md.
+  openbao:
+    image: openbao/openbao:2.5.0
+    command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_ROOT_TOKEN:?run deploy/up.sh to add OPENBAO_ROOT_TOKEN to .env}", "-dev-listen-address=0.0.0.0:8200"]
+    cap_add: [IPC_LOCK]
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200 # for `docker compose exec openbao bao ...`
+    ports: ["127.0.0.1:${OPENBAO_PORT:-8200}:8200"] # debugging only; the server reaches it on the compose network
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 2s
+      retries: 30
+    restart: unless-stopped
+
+  # One-shot: writes the root secret from .env into OpenBAO only if the path is still empty, so a re-run never
+  # replaces the key material the existing data was sealed with (same kids, every enc:v3/v4 row and file stays readable).
+  openbao-init:
+    image: openbao/openbao:2.5.0
+    depends_on:
+      openbao: { condition: service_healthy }
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: ${OPENBAO_ROOT_TOKEN}
+      OPENBAO_KV_PATH: ${OPENBAO_KV_PATH:-secret/data/mrpostman/root}
+      # Optional once OpenBAO holds the secret (KMS profile + `kms-setup.sh forget-env-keys`); dev seeding needs them.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      ENCRYPTION_KEY_FACTOR: ${ENCRYPTION_KEY_FACTOR:-}
+      ENCRYPTION_KEY_OLD: ${ENCRYPTION_KEY_OLD:-}
+      ENCRYPTION_KEY_FACTOR_OLD: ${ENCRYPTION_KEY_FACTOR_OLD:-}
+    entrypoint: ["sh", "/openbao-init.sh"]
+    configs: [{ source: openbao-init, target: /openbao-init.sh }]
+    restart: "no"
+
+  server:
+    build:
+      context: ../server
+      dockerfile: ../../deploy/server.Dockerfile
+    image: mrpostman-server:local
+    depends_on:
+      db: { condition: service_healthy }
+      openbao: { condition: service_healthy }
+      openbao-init: { condition: service_completed_successfully }
+    environment:
+      # Root key material lives in OpenBAO (see openbao-init); the app container never sees ENCRYPTION_KEY*.
+      OPENBAO_ADDR: http://openbao:8200
+      OPENBAO_TOKEN: ${OPENBAO_ROOT_TOKEN}
+      OPENBAO_KV_PATH: ${OPENBAO_KV_PATH:-secret/data/mrpostman/root}
+      ENCRYPTION_BACKFILL: ${ENCRYPTION_BACKFILL:-}
+      # Trailing-wildcard search ("alph*") on encrypted posts. Indexes hashed word prefixes, which show someone
+      # holding the database which words share a prefix. Set ENCRYPTION_PREFIX_SEARCH=false to turn it off.
+      ENCRYPTION_PREFIX_SEARCH: ${ENCRYPTION_PREFIX_SEARCH:-true}
+      # No calls to Mattermost, Inc. in any profile (locked through the environment, the console shows them read-only):
+      # a fresh install would otherwise default to pushes via https://push-test.mattermost.com (full message text),
+      # telemetry, the security-update check and the remote plugin marketplace. Pushes go only through a proxy you run:
+      # point PushNotificationServer at your own push proxy and keep PushNotificationContents=generic.
+      MM_EMAILSETTINGS_SENDPUSHNOTIFICATIONS: "false"
+      MM_EMAILSETTINGS_PUSHNOTIFICATIONSERVER: http://push-proxy-disabled.invalid
+      MM_EMAILSETTINGS_PUSHNOTIFICATIONCONTENTS: generic
+      MM_LOGSETTINGS_ENABLEDIAGNOSTICS: "false"
+      MM_SERVICESETTINGS_ENABLESECURITYFIXALERT: "false"
+      MM_PLUGINSETTINGS_ENABLEREMOTEMARKETPLACE: "false"
+      MM_PLUGINSETTINGS_AUTOMATICPREPACKAGEDPLUGINS: "false"
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://mmuser:${DB_PASSWORD}@db:5432/mrpostman?sslmode=disable&connect_timeout=10
+      MM_SERVICESETTINGS_SITEURL: ${SITE_URL:-http://localhost:8065}
+      MM_SERVICESETTINGS_LISTENADDRESS: :8065
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      MM_SERVICESETTINGS_LOCALMODESOCKETLOCATION: /mattermost/data/mattermost_local.socket
+      # The stock web app is served by the server at SITE_URL; the desktop app needs no extra origin.
+      MM_SERVICESETTINGS_ALLOWCORSFROM: ${SITE_URL:-http://localhost:8065}
+      MM_SERVICESETTINGS_CORSEXPOSEDHEADERS: Token X-Version-Id
+      MM_FILESETTINGS_DIRECTORY: /mattermost/data/files/
+      MM_PLUGINSETTINGS_ENABLE: "false"
+      MM_LOGSETTINGS_CONSOLELEVEL: WARN
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "true"
+      # Brand (v1.0.0): tab title, login header and About dialog read SiteName; the login page shows the description.
+      MM_TEAMSETTINGS_SITENAME: SMM
+      MM_TEAMSETTINGS_CUSTOMDESCRIPTIONTEXT: ${SITE_DESCRIPTION:-SMM — pesan terenkripsi}
+      MM_EMAILSETTINGS_FEEDBACKNAME: SMM
+      # SSO is off unless you point it at your own identity provider (any OpenID Connect IdP). Set in .env:
+      # SSO_ENABLE/OIDC_ENABLE=true, SSO_CLIENT_ID, SSO_CLIENT_SECRET and the endpoint URLs below.
+      # GitLab provider (works with any OIDC IdP):
+      MM_GITLABSETTINGS_ENABLE: ${SSO_ENABLE:-false}
+      MM_GITLABSETTINGS_ID: ${SSO_CLIENT_ID:-}
+      MM_GITLABSETTINGS_SECRET: ${SSO_CLIENT_SECRET:-}
+      MM_GITLABSETTINGS_SCOPE: ${SSO_SCOPE:-openid profile email}
+      MM_GITLABSETTINGS_AUTHENDPOINT: ${SSO_AUTH_URL:-}
+      MM_GITLABSETTINGS_TOKENENDPOINT: ${SSO_TOKEN_URL:-}
+      MM_GITLABSETTINGS_USERAPIENDPOINT: ${SSO_USERINFO_URL:-}
+      MM_GITLABSETTINGS_BUTTONTEXT: ${SSO_BUTTON_TEXT:-}
+      # The fork's in-tree OpenID Connect provider (no licence needed server-side; the stock web app only shows
+      # the button with a licence).
+      MM_OPENIDSETTINGS_ENABLE: ${OIDC_ENABLE:-false}
+      MM_OPENIDSETTINGS_ID: ${SSO_CLIENT_ID:-}
+      MM_OPENIDSETTINGS_SECRET: ${SSO_CLIENT_SECRET:-}
+      MM_OPENIDSETTINGS_SCOPE: "openid profile email"
+      MM_OPENIDSETTINGS_DISCOVERYENDPOINT: ${OIDC_DISCOVERY_URL:-}
+      MM_OPENIDSETTINGS_AUTHENDPOINT: ${SSO_AUTH_URL:-}
+      MM_OPENIDSETTINGS_TOKENENDPOINT: ${SSO_TOKEN_URL:-}
+      MM_OPENIDSETTINGS_USERAPIENDPOINT: ${SSO_USERINFO_URL:-}
+      MM_OPENIDSETTINGS_BUTTONTEXT: ${OIDC_BUTTON_TEXT:-Masuk dengan SSO}
+      # Host name of an IdP on a private network (the server refuses internal addresses otherwise), e.g. idp.internal
+      MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS: ${SSO_INTERNAL_HOST:-}
+    volumes:
+      - config:/mattermost/config
+      - data:/mattermost/data
+    ports: ["${API_PORT:-8065}:8065"]
+    restart: unless-stopped
+
+  # One-shot: demo team, channel and users (idempotent).
+  seed:
+    image: mrpostman-server:local
+    pull_policy: never
+    depends_on:
+      server: { condition: service_healthy }
+    volumes: [data:/mattermost/data]
+    entrypoint: ["sh", "/seed.sh"]
+    configs: [{ source: seed, target: /seed.sh }]
+    restart: "no"
+
+
+configs:
+  seed:
+    file: ./seed.sh
+  openbao-init:
+    file: ./openbao/init.sh
+
+volumes:
+  db:
+  config:
+  data:

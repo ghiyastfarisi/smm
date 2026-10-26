@@ -53,7 +53,7 @@ exports[`PostMessagePreview nested previews should render file preview 1`] = `
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>
@@ -146,7 +146,7 @@ exports[`PostMessagePreview nested previews should render opengraph preview 1`] 
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>
@@ -239,7 +239,7 @@ exports[`PostMessagePreview should not render bot icon 1`] = `
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>
@@ -332,7 +332,7 @@ exports[`PostMessagePreview should render bot icon 1`] = `
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>
@@ -425,7 +425,7 @@ exports[`PostMessagePreview should render correctly 1`] = `
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>
@@ -520,7 +520,7 @@ exports[`PostMessagePreview show render without preview when preview posts becom
               >
                 <time
                   class="post-preview__time"
-                  datetime="2020-01-15T12:00:00.000"
+                  datetime="2020-01-15T19:00:00.000"
                 >
                   January 15, 2020
                 </time>

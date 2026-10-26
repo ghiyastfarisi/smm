@@ -100,6 +100,7 @@ func (us SqlBotStore) Get(botUserId string, includeDeleted bool) (*model.Bot, er
 		return nil, errors.Wrapf(err, "selectone: user_id=%s", botUserId)
 	}
 
+	openBotNames(&bot)
 	return &bot, nil
 }
 
@@ -159,6 +160,7 @@ func (us SqlBotStore) GetAll(options *model.BotGetOptions) ([]*model.Bot, error)
 		return nil, errors.Wrap(err, "error selecting all bots")
 	}
 
+	openBotNames(bots...)
 	return bots, nil
 }
 
@@ -245,6 +247,7 @@ func (us SqlBotStore) GetAllAfter(limit int, afterId string) ([]*model.Bot, erro
 		return nil, errors.Wrap(err, "failed to find Bots")
 	}
 
+	openBotNames(bots...)
 	return bots, nil
 }
 
@@ -266,5 +269,17 @@ func (us SqlBotStore) GetByUsername(username string) (*model.Bot, error) {
 		return nil, errors.Wrapf(err, "failed to find Bot with username=%s", username)
 	}
 
+	openBotNames(&bot)
 	return &bot, nil
+}
+
+// openBotNames decrypts DisplayName, which is the encrypted Users.FirstName selected under an alias. The
+// generic scan decryption refuses it because the alias doesn't name the sealed column.
+func openBotNames(bots ...*model.Bot) {
+	if msgCipher == nil {
+		return
+	}
+	for _, b := range bots {
+		b.DisplayName = msgCipher.decryptAt(b.DisplayName, "firstname", b.UserId, "")
+	}
 }

@@ -443,7 +443,7 @@ func (a *App) SendNotifications(rctx request.CTX, post *model.Post, team *model.
 						mlog.String("sender_id", sender.Id),
 						mlog.String("receiver_id", id),
 					)
-					rctx.Logger().Debug("Skipped sending notification email, address not verified.", mlog.String("user_email", profileMap[id].Email), mlog.String("user_id", id))
+					rctx.Logger().Debug("Skipped sending notification email, address not verified.", emailLogField(profileMap[id].Email), mlog.String("user_id", id))
 					continue
 				}
 

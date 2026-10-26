@@ -593,6 +593,7 @@ func (s *SqlChannelStore) initializeQueries() {
 }
 
 func (s SqlChannelStore) upsertPublicChannelT(transaction *sqlxTxWrapper, channel *model.Channel) error {
+	channel = sealChannel(channel)
 	publicChannel := &publicChannel{
 		Id:          channel.Id,
 		DeleteAt:    channel.DeleteAt,
@@ -815,7 +816,7 @@ func (s SqlChannelStore) saveChannelT(transaction *sqlxTxWrapper, channel *model
 	insert := s.getQueryBuilder().
 		Insert("Channels").
 		Columns(channelSliceColumns(false)...).
-		Values(channelToSlice(channel)...).
+		Values(channelToSlice(sealChannel(channel))...).
 		SuffixExpr(sq.Expr("ON CONFLICT (TeamId, Name) DO NOTHING"))
 
 	query, params, err := insert.ToSql()
@@ -906,7 +907,7 @@ func (s SqlChannelStore) updateChannelT(transaction *sqlxTxWrapper, channel *mod
 			AutoTranslation=:AutoTranslation,
 			Discoverable=:Discoverable,
 			DisableJoinLeaveMessages=:DisableJoinLeaveMessages
-		WHERE Id=:Id`, channel)
+		WHERE Id=:Id`, sealChannel(channel))
 	if err != nil {
 		if IsUniqueConstraintError(err, []string{"Name", "channels_name_teamid_key"}) {
 			return nil, store.NewErrUniqueConstraint("Name")

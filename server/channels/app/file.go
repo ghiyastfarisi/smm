@@ -36,6 +36,7 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/mattermost/mattermost/server/v8/platform/services/docextractor"
 	"github.com/mattermost/mattermost/server/v8/platform/shared/filestore"
+	"github.com/mattermost/mattermost/server/v8/platform/shared/keyring"
 
 	"github.com/pkg/errors"
 )
@@ -770,7 +771,7 @@ func (t *UploadFileTask) init(a *App) {
 	t.fileinfo.Id = model.NewId()
 	t.fileinfo.CreatorId = t.UserId
 	t.fileinfo.CreateAt = t.Timestamp.UnixNano() / int64(time.Millisecond)
-	t.fileinfo.Path = t.pathPrefix() + t.Name
+	t.fileinfo.Path = t.pathPrefix() + storedFileName(t.Name)
 	t.fileinfo.ChannelId = t.ChannelId
 
 	t.limitedInput = &io.LimitedReader{
@@ -920,7 +921,7 @@ func (t *UploadFileTask) preprocessImage() *model.AppError {
 	}
 
 	t.fileinfo.HasPreviewImage = true
-	nameWithoutExtension := t.Name[:strings.LastIndex(t.Name, ".")]
+	nameWithoutExtension := storedBaseName(t.Name)
 	t.fileinfo.PreviewPath = t.pathPrefix() + nameWithoutExtension + "_preview." + getFileExtFromMimeType(t.fileinfo.MimeType)
 	t.fileinfo.ThumbnailPath = t.pathPrefix() + nameWithoutExtension + "_thumb." + getFileExtFromMimeType(t.fileinfo.MimeType)
 
@@ -1028,6 +1029,22 @@ func (t *UploadFileTask) postprocessImage(file io.Reader) {
 	wg.Wait()
 }
 
+// storedFileName is the name a file is written under. With encryption on (keyring: OpenBAO or env)
+// it hides the original name (kept encrypted in FileInfo.Name) from storage paths and the FileInfo
+// path columns.
+func storedFileName(name string) string {
+	if !keyring.Enabled() {
+		return name
+	}
+	return "file" + strings.ToLower(filepath.Ext(name))
+}
+
+// storedBaseName is storedFileName without its extension, for preview and thumbnail paths.
+func storedBaseName(name string) string {
+	n := storedFileName(name)
+	return strings.TrimSuffix(n, filepath.Ext(n))
+}
+
 func (t UploadFileTask) pathPrefix() string {
 	if t.UserId == model.BookmarkFileOwner {
 		return model.BookmarkFileOwner +
@@ -1093,7 +1110,7 @@ func (a *App) DoUploadFileExpectModification(rctx request.CTX, now time.Time, ra
 	if userID == model.BookmarkFileOwner {
 		pathPrefix = model.BookmarkFileOwner + "/teams/" + teamID + "/channels/" + channelID + "/" + info.Id + "/"
 	}
-	info.Path = pathPrefix + filename
+	info.Path = pathPrefix + storedFileName(filename)
 
 	if info.IsImage() && !info.IsSvg() {
 		if limitErr := checkImageResolutionLimit(info.Width, info.Height, *a.Config().FileSettings.MaxImageResolution); limitErr != nil {
@@ -1101,7 +1118,7 @@ func (a *App) DoUploadFileExpectModification(rctx request.CTX, now time.Time, ra
 			return nil, data, err
 		}
 
-		nameWithoutExtension := filename[:strings.LastIndex(filename, ".")]
+		nameWithoutExtension := storedBaseName(filename)
 		info.PreviewPath = pathPrefix + nameWithoutExtension + "_preview." + getFileExtFromMimeType(info.MimeType)
 		info.ThumbnailPath = pathPrefix + nameWithoutExtension + "_thumb." + getFileExtFromMimeType(info.MimeType)
 	}

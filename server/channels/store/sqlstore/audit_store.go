@@ -40,11 +40,13 @@ func newSqlAuditStore(sqlStore *SqlStore) store.AuditStore {
 func (s SqlAuditStore) Save(audit *model.Audit) error {
 	audit.Id = model.NewId()
 	audit.CreateAt = model.GetMillis()
+	stored := *audit
+	stored.IpAddress, stored.ExtraInfo = sealed("audits.ipaddress", audit.Id, audit.IpAddress), sealed("audits.extrainfo", audit.Id, audit.ExtraInfo)
 
 	if _, err := s.GetMaster().NamedExec(`INSERT INTO Audits
 (Id, CreateAt, UserId, Action, ExtraInfo, IpAddress, SessionId)
 VALUES
-(:Id, :CreateAt, :UserId, :Action, :ExtraInfo, :IpAddress, :SessionId)`, audit); err != nil {
+(:Id, :CreateAt, :UserId, :Action, :ExtraInfo, :IpAddress, :SessionId)`, &stored); err != nil {
 		return errors.Wrapf(err, "failed to save Audit with userId=%s and action=%s", audit.UserId, audit.Action)
 	}
 	return nil

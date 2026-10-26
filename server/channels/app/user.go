@@ -2136,9 +2136,9 @@ func (a *App) UpdateUserRolesWithUser(rctx request.CTX, user *model.User, newRol
 }
 
 func (a *App) PermanentDeleteUser(rctx request.CTX, user *model.User) *model.AppError {
-	rctx.Logger().Warn("Attempting to permanently delete account", mlog.String("user_id", user.Id), mlog.String("user_email", user.Email))
+	rctx.Logger().Warn("Attempting to permanently delete account", mlog.String("user_id", user.Id), emailLogField(user.Email))
 	if user.IsInRole(model.SystemAdminRoleId) {
-		rctx.Logger().Warn("You are deleting a user that is a system administrator.  You may need to set another account as the system administrator using the command line tools.", mlog.String("user_email", user.Email))
+		rctx.Logger().Warn("You are deleting a user that is a system administrator.  You may need to set another account as the system administrator using the command line tools.", emailLogField(user.Email))
 	}
 
 	if _, err := a.UpdateActive(rctx, user, false); err != nil {
@@ -2265,7 +2265,7 @@ func (a *App) PermanentDeleteUser(rctx request.CTX, user *model.User) *model.App
 		return model.NewAppError("PermanentDeleteUser", "app.file_info.permanent_delete_by_user.app_error", nil, "Couldn't delete profile image of the user.", http.StatusAccepted)
 	}
 
-	rctx.Logger().Warn("Permanently deleted account", mlog.String("user_email", user.Email), mlog.String("user_id", user.Id))
+	rctx.Logger().Warn("Permanently deleted account", emailLogField(user.Email), mlog.String("user_id", user.Id))
 
 	return nil
 }

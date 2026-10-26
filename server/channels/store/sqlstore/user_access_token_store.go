@@ -55,7 +55,7 @@ func (s SqlUserAccessTokenStore) Save(token *model.UserAccessToken) (*model.User
 
 	query, args, err := s.getQueryBuilder().Insert("UserAccessTokens").
 		Columns("Id", "Token", "UserId", "Description", "IsActive", "ExpiresAt").
-		Values(token.Id, token.Token, token.UserId, token.Description, token.IsActive, token.ExpiresAt).
+		Values(token.Id, hashToken(token.Token), token.UserId, token.Description, token.IsActive, token.ExpiresAt).
 		ToSql()
 	if err != nil {
 		return nil, errors.Wrap(err, "UserAccessToken_tosql")
@@ -169,15 +169,17 @@ func (s SqlUserAccessTokenStore) GetAll(offset, limit int) ([]*model.UserAccessT
 func (s SqlUserAccessTokenStore) GetByToken(tokenString string) (*model.UserAccessToken, error) {
 	var token model.UserAccessToken
 
-	query := s.userAccessTokensSelectQuery.Where(sq.Eq{"Token": tokenString})
+	query := s.userAccessTokensSelectQuery.Where(sq.Eq{"Token": hashToken(tokenString)})
 
 	if err := s.GetReplica().GetBuilder(&token, query); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, store.NewErrNotFound("UserAccessToken", fmt.Sprintf("token=%s", tokenString))
+			return nil, store.NewErrNotFound("UserAccessToken", "token")
 		}
-		return nil, errors.Wrapf(err, "failed to get UserAccessToken with token=%s", tokenString)
+		return nil, errors.Wrap(err, "failed to get UserAccessToken by token")
 	}
 
+	// Stored hashed; hand back the secret the caller presented.
+	token.Token = tokenString
 	return &token, nil
 }
 
@@ -536,7 +538,7 @@ func (s SqlUserAccessTokenStore) UpdateTokenRotate(tokenID, newToken string, exp
 
 	if _, err = transaction.Exec(
 		"UPDATE UserAccessTokens SET Token = ?, ExpiresAt = ? WHERE Id = ?",
-		newToken, expiresAt, tokenID,
+		hashToken(newToken), expiresAt, tokenID,
 	); err != nil {
 		return errors.Wrapf(err, "failed to rotate UserAccessToken id=%s", tokenID)
 	}

@@ -4,6 +4,8 @@
 package storetest
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,6 +27,12 @@ func TestUserAccessTokenStore(t *testing.T, rctx request.CTX, ss store.Store) {
 	t.Run("UserAccessTokenUpdateLastNotifiedAt", func(t *testing.T) { testUserAccessTokenUpdateLastNotifiedAt(t, rctx, ss) })
 }
 
+// storedTokenHash is how the store persists token secrets; reads by id return it, never the secret.
+func storedTokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
 func testUserAccessTokenSaveGetDelete(t *testing.T, rctx request.CTX, ss store.Store) {
 	uat := &model.UserAccessToken{
 		Token:       model.NewId(),
@@ -44,7 +52,7 @@ func testUserAccessTokenSaveGetDelete(t *testing.T, rctx request.CTX, ss store.S
 
 	result, terr := ss.UserAccessToken().Get(uat.Id)
 	require.NoError(t, terr)
-	require.Equal(t, result.Token, uat.Token, "received incorrect token after save")
+	require.Equal(t, storedTokenHash(uat.Token), result.Token, "token must be stored hashed")
 
 	received, err2 := ss.UserAccessToken().GetByToken(uat.Token)
 	require.NoError(t, err2)
@@ -406,7 +414,7 @@ func testUserAccessTokenRotate(t *testing.T, rctx request.CTX, ss store.Store) {
 	// Token row should reflect the new secret and expiry.
 	updated, nErr := ss.UserAccessToken().Get(uat.Id)
 	require.NoError(t, nErr)
-	require.Equal(t, newSecret, updated.Token, "token secret should be updated")
+	require.Equal(t, storedTokenHash(newSecret), updated.Token, "token secret should be updated (stored hashed)")
 	require.Equal(t, newExpiry, updated.ExpiresAt, "token expiry should be updated")
 	require.NotEqual(t, oldSecret, updated.Token, "old secret must be replaced")
 
