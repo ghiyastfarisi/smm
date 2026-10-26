@@ -4,6 +4,28 @@ From an empty host to a running smm server with the KMS, a security demo, and pr
 and the encryption design: [`ARCHITECTURE.md`](ARCHITECTURE.md). Every command runs from the repository root unless
 it says otherwise.
 
+## Quick install on a VM (one command)
+A fresh Linux VM with `git`, Docker (Compose v2) and `openssl`; 8 GB RAM for the first build (the web app builds in a
+`node` container, so the VM needs no Node.js), 20 GB disk.
+```bash
+git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
+git checkout v1.0.0-rc.5            # or the latest release tag
+bash deploy/install.sh              # http://<VM IP>:8065
+```
+Other addresses: `bash deploy/install.sh http://chat.internal:8065`, or with the locked release settings and the TLS
+edge: `bash deploy/install.sh --release https://chat.example.org:8443` (self-signed certificate until you replace
+`deploy/tls/{cert,key}.pem`). The address must be exactly what users open.
+
+`install.sh` creates `deploy/.env`, builds the web app and the server image, initialises OpenBAO (Shamir 3-of-5,
+AppRole, audit log) and starts the server. It creates **no demo users**: the first account you create in the browser
+becomes the system admin. Then:
+1. Copy `deploy/.env` and `deploy/openbao/secrets/init.txt` somewhere safe and offline.
+2. After any reboot: `bash deploy/openbao/kms-setup.sh unseal` (add `--release` if you installed with it).
+3. Before real users: §9 (TLS with a CA certificate, backup, `forget-env-keys`, hand out the shares, revoke the
+   root token).
+
+The sections below are the same install step by step, plus the security demo and operations.
+
 ## 0. Prerequisites
 - Linux host with Docker and Docker Compose v2, `git`, `openssl`, Node.js 20+ (for the build and proof scripts).
 - 4 GB RAM, 20 GB disk. Ports `8065` (server), optionally `8443` (TLS edge).

@@ -8,7 +8,7 @@
 #   --dev-kms  force the dev OpenBAO (-dev, in-memory, root token) even when the KMS is set up
 set -euo pipefail
 cd "$(dirname "$0")"
-files=(-f docker-compose.yml)
+files=(--profile demo -f docker-compose.yml)   # demo: seed users (dev only; install.sh leaves it out)
 release=false
 kms=auto
 for a in "$@"; do
