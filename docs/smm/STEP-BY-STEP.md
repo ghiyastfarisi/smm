@@ -5,8 +5,9 @@ and the encryption design: [`ARCHITECTURE.md`](ARCHITECTURE.md). Every command r
 it says otherwise.
 
 ## Quick install on a VM (one command)
-A fresh Linux VM with `git`, Docker (Compose v2) and `openssl`; 8 GB RAM for the first build (the web app builds in a
-`node` container, so the VM needs no Node.js), 20 GB disk.
+A fresh Linux VM with `git`, Docker (Compose v2) and `openssl`; 2 GB RAM, 20 GB disk. The server image comes ready-built
+from GHCR (`ghcr.io/ghiyastfarisi/smm:<tag>`, built by `.github/workflows/smm-image.yml`); `--build` builds it on the VM
+instead (8 GB RAM, web app in a `node` container, still no Node.js needed).
 ```bash
 git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
 git checkout v1.0.0-rc.5            # or the latest release tag

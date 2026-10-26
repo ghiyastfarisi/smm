@@ -54,7 +54,7 @@ services:
     build:
       context: ../server
       dockerfile: ../deploy/server.Dockerfile
-    image: mrpostman-server:local
+    image: ${SMM_IMAGE:-mrpostman-server:local} # install.sh: ghcr.io/ghiyastfarisi/smm:<tag>
     depends_on:
       db: { condition: service_healthy }
       openbao: { condition: service_healthy }
@@ -129,7 +129,7 @@ services:
   # One-shot: demo team, channel and users with a known password (idempotent). Only with `--profile demo` (up.sh);
   # never on a real install, it creates a system admin.
   seed:
-    image: mrpostman-server:local
+    image: ${SMM_IMAGE:-mrpostman-server:local} # install.sh: ghcr.io/ghiyastfarisi/smm:<tag>
     profiles: [demo]
     pull_policy: never
     depends_on:

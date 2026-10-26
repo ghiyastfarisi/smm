@@ -29,7 +29,7 @@ server fork, the KMS and the deployment; it ships no client builds.
 ## Install on a VM
 ```bash
 git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
-bash deploy/install.sh                  # needs git, Docker, openssl; KMS on; no demo users
+bash deploy/install.sh                  # pulls ghcr.io/ghiyastfarisi/smm; needs git, Docker, openssl; KMS on
 ```
 Open the address it prints and create the first account (it becomes the system admin). Details and production
 hardening: [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md#quick-install-on-a-vm-one-command).

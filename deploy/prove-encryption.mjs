@@ -56,7 +56,7 @@ export async function proveEncryption(report, info = () => {}) {
   const canary = `canary${randomBytes(6).toString('hex')}`
   const pw = `Pw-${randomBytes(8).toString('hex')}!`
   info('canary', canary)
-  const admin = await apiAs('admin', 'Demo#12345')
+  const admin = await apiAs(process.env.ADMIN_USER ?? 'admin', process.env.ADMIN_PASSWORD ?? 'Demo#12345') // a system admin; the demo one by default
   const team = await admin('/teams', 'POST', { name: `e2e-proof-${randomBytes(4).toString('hex')}`, display_name: 'Proof', type: 'I' }) // team names are plaintext by design: no canary
   const username = `e2eproof${canary.slice(-8)}`
   const user = await admin('/users', 'POST', { username, email: `${canary}@proof.example`, password: pw, first_name: `First${canary}`, last_name: `Last${canary}`, nickname: `Nick${canary}`, position: `Pos${canary}` })
