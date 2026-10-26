@@ -1,8 +1,10 @@
 # smm server (AGPL) with at-rest encryption. Build context: ../server
 FROM golang:1.27-bookworm AS build
 WORKDIR /src
-COPY go.mod go.sum go.work go.work.sum ./
+COPY go.mod go.sum ./
 COPY public/go.mod public/go.sum ./public/
+# go.work is gitignored upstream (make setup-go-work); create it so a fresh clone builds.
+RUN go work init . ./public
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \

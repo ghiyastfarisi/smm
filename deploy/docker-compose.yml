@@ -53,7 +53,7 @@ services:
   server:
     build:
       context: ../server
-      dockerfile: ../../deploy/server.Dockerfile
+      dockerfile: ../deploy/server.Dockerfile
     image: mrpostman-server:local
     depends_on:
       db: { condition: service_healthy }
