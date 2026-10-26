@@ -101,3 +101,4 @@ Desktop and mobile: the official Mattermost apps, server address = `SITE_URL`.
 | Messages only appear after refresh | `SITE_URL` is not the address in the browser, or the proxy does not pass `Upgrade` headers |
 | Build stops with out-of-memory | give the VM 8 GB for the build, or use the GitHub image (`SMM_IMAGE`, step 4) |
 | `all predefined address pools have been fully subnetted` | too many Docker networks: `docker network prune` |
+| `openbao` restarts: `kms.hcl: permission denied`, or server: `i18n/…json: permission denied` | the checkout was made with a strict umask (files `600`, folders `700`); the containers run as other users. In the checkout: `chmod 711 . deploy deploy/openbao && chmod 644 deploy/openbao/*.hcl && chmod -R a+rX server webapp`, then `docker compose up -d --build`. Clone with the default `umask 022` to avoid it |

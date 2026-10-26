@@ -29,6 +29,8 @@ COPY --from=build /src/i18n /mattermost/i18n
 COPY --from=build /src/templates /mattermost/templates
 COPY --from=build /src/fonts /mattermost/fonts
 COPY --from=web /webapp/channels/dist /mattermost/client
+# COPY keeps the checkout's modes; a clone made with umask 077 would leave these unreadable for the mm user.
+RUN chmod -R a+rX /mattermost/bin /mattermost/i18n /mattermost/templates /mattermost/fonts /mattermost/client
 USER mm
 ENV PATH=/mattermost/bin:$PATH MMCTL_LOCAL_SOCKET_PATH=/mattermost/data/mattermost_local.socket
 EXPOSE 8065
