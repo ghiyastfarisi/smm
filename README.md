@@ -26,22 +26,16 @@ server fork, the KMS and the deployment; it ships no client builds.
 | Encryption proof and coverage | [docs/smm/ENCRYPTION.md](docs/smm/ENCRYPTION.md) |
 | KMS operations | [deploy/openbao/README.md](deploy/openbao/README.md) |
 
-## Install on a VM
+## Install
+Needs Git, Docker with Compose v2, and openssl.
 ```bash
-git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
-bash deploy/install.sh                  # pulls ghcr.io/ghiyastfarisi/smm; needs git, Docker, openssl; KMS on
+git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm/deploy
+umask 077 && cp .env.example .env     # fill in ENCRYPTION_KEY, ENCRYPTION_KEY_FACTOR, DB_PASSWORD, SITE_URL
+docker compose up -d                  # builds the image the first time, sets up the OpenBAO KMS, starts
 ```
-Open the address it prints and create the first account (it becomes the system admin). Details and production
-hardening: [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md#quick-install-on-a-vm-one-command).
-
-## Quick start (local demo)
-```bash
-git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
-node deploy/build-stock-client.mjs
-bash deploy/up.sh                       # creates deploy/.env, builds, starts, seeds demo users
-node deploy/prove-encryption.mjs        # "all checks passed: data at rest is encrypted"
-```
-Open http://localhost:8065 and log in as `ani` / `Demo#12345`. Production setup: [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md).
+No users, teams or channels are created. Open `SITE_URL` and create the first account (it becomes the system
+admin), or use `mmctl --local`. Then keep `deploy/.env` and `deploy/openbao/secrets/init.txt` offline. Details,
+the security demo and production hardening: [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md).
 
 ## Repository layout
 | Path | What | Licence |

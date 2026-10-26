@@ -56,7 +56,8 @@ export async function proveEncryption(report, info = () => {}) {
   const canary = `canary${randomBytes(6).toString('hex')}`
   const pw = `Pw-${randomBytes(8).toString('hex')}!`
   info('canary', canary)
-  const admin = await apiAs(process.env.ADMIN_USER ?? 'admin', process.env.ADMIN_PASSWORD ?? 'Demo#12345') // a system admin; the demo one by default
+  if (!process.env.ADMIN_USER || !process.env.ADMIN_PASSWORD) throw new Error('set ADMIN_USER and ADMIN_PASSWORD (a system admin)')
+  const admin = await apiAs(process.env.ADMIN_USER, process.env.ADMIN_PASSWORD)
   const team = await admin('/teams', 'POST', { name: `e2e-proof-${randomBytes(4).toString('hex')}`, display_name: 'Proof', type: 'I' }) // team names are plaintext by design: no canary
   const username = `e2eproof${canary.slice(-8)}`
   const user = await admin('/users', 'POST', { username, email: `${canary}@proof.example`, password: pw, first_name: `First${canary}`, last_name: `Last${canary}`, nickname: `Nick${canary}`, position: `Pos${canary}` })
@@ -148,17 +149,15 @@ export async function proveEncryption(report, info = () => {}) {
     row('ENC-37', !moved2.includes(canary), 'a ciphertext copied into a post row of another channel does not decrypt there (scope in the key and the GCM tag, checked against the row)', `post ${victim2.id} now reads: ${moved2.slice(0, 60)}…`)
     const serverEnv = dc('exec', '-T', 'server', 'env').toString().split('\n').filter(l => /^ENCRYPTION_KEY/.test(l)).map(l => l.split('=')[0])
     row('ENC-38', serverEnv.length === 0, 'the server container environment holds no ENCRYPTION_KEY / ENCRYPTION_KEY_FACTOR (keys live in OpenBAO)', serverEnv.length ? `found: ${serverEnv.join(', ')}` : 'env has no ENCRYPTION_KEY* variable')
-    // KMS profile (docker-compose.kms.yml): the dev root token is not valid there; use the operator's token from
-    // kms-setup.sh's init file, or BAO_TOKEN from the environment.
+    // The operator's root token: BAO_TOKEN, else the one in init.txt (written by openbao-setup on the first start).
     let kmsInit = ''
     try { kmsInit = readFileSync(new URL('./openbao/secrets/init.txt', import.meta.url), 'utf8') } catch {}
-    const kmsMode = dc('exec', '-T', 'server', 'env').toString().includes('OPENBAO_ROLE_ID=')
-    const rootToken = process.env.BAO_TOKEN || (kmsMode && kmsInit.match(/^Initial Root Token: (\S+)/m)?.[1]) || env.match(/^OPENBAO_ROOT_TOKEN=(.+)$/m)?.[1]
+    const rootToken = process.env.BAO_TOKEN || kmsInit.match(/^Initial Root Token: (\S+)/m)?.[1]
     const kvPath = env.match(/^OPENBAO_KV_PATH=(.+)$/m)?.[1] ?? 'secret/data/mrpostman/root'
     const [mount, ...restPath] = kvPath.split('/data/')
     const baoField = f => { try { return dc('exec', '-T', '-e', `BAO_TOKEN=${rootToken}`, 'openbao', 'bao', 'kv', 'get', `-mount=${mount}`, `-field=${f}`, restPath.join('/data/')).toString().trim() } catch (e) { return `error: ${e.message.slice(0, 80)}` } }
     const baoKey = baoField('key')
-    // keys.length 0: the root keys left deploy/.env (kms-setup.sh forget-env-keys) and OpenBAO is their only copy.
+    // keys.length 0: the root keys left deploy/.env (deploy/forget-env-keys.sh) and OpenBAO is their only copy.
     const custody = keys.length === 2 ? (baoKey === keys[0] ? 'key matches the .env seed' : `mismatch (${baoKey.slice(0, 40)})`) : 'deploy/.env holds no ENCRYPTION_KEY*: OpenBAO is the only copy'
     const baoOk = !!rootToken && !baoKey.startsWith('error') && baoKey.length > 40 && (keys.length === 0 || baoKey === keys[0])
     row('ENC-39', baoOk, `root secret exists in OpenBAO at ${kvPath} (and equals the .env seed while one is there; existing data stayed readable)`, custody)

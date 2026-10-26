@@ -1,4 +1,13 @@
-# smm server (AGPL) with at-rest encryption. Build context: ../server
+# smm server (AGPL) with at-rest encryption. Build context: ../server, named context `webapp`: ../webapp
+# (docker-compose.yml sets both), so `docker compose build server` builds everything from a fresh clone.
+
+# The stock Mattermost web app, served at / (STOCK-01). Source maps are left out of the image (SEC-09).
+FROM node:24.11.1-bookworm AS web
+WORKDIR /webapp
+COPY --from=webapp . .
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund --engine-strict=false && npm run build && find channels/dist -name '*.map' -delete
+
 FROM golang:1.27-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -19,9 +28,7 @@ COPY --from=build /out/ /mattermost/bin/
 COPY --from=build /src/i18n /mattermost/i18n
 COPY --from=build /src/templates /mattermost/templates
 COPY --from=build /src/fonts /mattermost/fonts
-# The stock Mattermost web app (release 1.0.0-rc.1 serves the unmodified client at /): build webapp/ and
-# copy webapp/channels/dist to server/client before building this image (module 31, STOCK-01).
-COPY --from=build /src/client /mattermost/client
+COPY --from=web /webapp/channels/dist /mattermost/client
 USER mm
 ENV PATH=/mattermost/bin:$PATH MMCTL_LOCAL_SOCKET_PATH=/mattermost/data/mattermost_local.socket
 EXPOSE 8065

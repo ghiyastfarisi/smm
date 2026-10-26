@@ -2,7 +2,7 @@
 # Backup (OPS-03): database dump + file store → deploy/backups/mrpostman-<UTC stamp>.tar.gz with a .sha256 beside it.
 # The archive holds only ciphertext: it is useless (and harmless) without the key material, which is backed up
 # SEPARATELY and stored apart from this archive:
-#   dev   — deploy/.env (ENCRYPTION_KEY, ENCRYPTION_KEY_FACTOR, *_OLD; openbao-init re-seeds OpenBAO from it)
+#   dev   — deploy/.env (ENCRYPTION_KEY, ENCRYPTION_KEY_FACTOR, *_OLD; openbao-setup writes it into OpenBAO on the first start)
 #   prod  — the OpenBAO raft snapshot (`bao operator raft snapshot save`) + the unseal key shares (openbao/README.md §6)
 # Usage: bash deploy/backup.sh [out-dir]     restore with: bash deploy/restore.sh <archive>
 set -euo pipefail

@@ -1,5 +1,5 @@
 # Release profile (CFG-01…13) as a compose override:
-#   bash deploy/up.sh --release        (= docker compose -f docker-compose.yml -f docker-compose.release.yml up -d --build)
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.release.yml in deploy/.env, then docker compose up -d
 # Settings set through MM_* environment variables are locked: the console shows them read-only, so nobody can weaken
 # the profile from the UI — change this file and `up --release` again. Verify with `node deploy/prove-encryption.mjs`.
 # TLS: the `tls` service terminates https on :8443 with deploy/tls/{cert,key}.pem (self-signed, from

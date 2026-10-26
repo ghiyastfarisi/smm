@@ -17,7 +17,6 @@ if [ -z "${ALLOW_DIRTY:-}" ]; then
 fi
 tag=${tag:-untagged-$(git -C $root rev-parse --short HEAD)}
 
-node build-stock-client.mjs                       # stock web app → server/client (gitignored)
 docker compose build server
 
 sum() { docker run --rm --entrypoint sh "$1" -c "$2"; }

@@ -1,7 +1,7 @@
 # Proving the encryption at rest
 
 ```bash
-node deploy/prove-encryption.mjs     # ~10 s, needs the compose stack running; cleans up after itself
+ADMIN_USER=<admin> ADMIN_PASSWORD=<password> node deploy/prove-encryption.mjs   # ~10 s, on the host; cleans up after itself
 ```
 
 The script writes fresh **canary** data through the normal API (a message with a hashtag, a text file, a draft,
@@ -29,15 +29,14 @@ e-mail addresses on account deletion (`app/user.go`); the fork now logs a short 
 `keyring.Load()` (`server/platform/shared/keyring`) is the single entry point for the SQL store, the
 file store and the app (`storedFileName`); nothing else reads key material.
 
-- **OpenBAO** (always on; since 1.0.0-rc.4 `bash deploy/up.sh` starts the **KMS profile** — sealed raft storage,
-  Shamir 3/5 unseal, AppRole with a read-only policy, file audit device — whenever `deploy/openbao/kms-setup.sh` has
-  run once; `--dev-kms` forces the in-memory dev OpenBAO): with `OPENBAO_ADDR` set, the root secret is read once per
+- **OpenBAO** (always on: `docker compose up -d` runs it with sealed raft storage, Shamir 3/5 unseal, AppRole with a
+  read-only policy and a file audit device; `openbao-setup` initialises and unseals it): with `OPENBAO_ADDR` set, the root secret is read once per
   process from KV v2 at `OPENBAO_KV_PATH` (default `secret/data/mrpostman/root`, fields `key`, `factor`,
   `old_keys`, `old_factors`) with `OPENBAO_TOKEN` or AppRole (`OPENBAO_ROLE_ID` + `OPENBAO_SECRET_ID`). The server
   container's environment holds no `ENCRYPTION_KEY*` (ENC-38). If the fetch fails for any reason the server refuses
-  to start — there is no silent fallback to the environment. The dev stack runs OpenBAO in `-dev` mode (in-memory);
-  `openbao-init` seeds the secret from `deploy/.env` only when the path is empty, so a restart keeps the kids and the
-  data readable. Production profile (raft storage, unseal, AppRole + read-only policy, audit device):
+  to start — there is no silent fallback to the environment. `openbao-setup` writes the secret from `deploy/.env`
+  only when the path is empty, so a restart keeps the kids and the
+  data readable. Details and production steps:
   `deploy/openbao/README.md`.
 - **Environment fallback**: without `OPENBAO_ADDR` the `ENCRYPTION_KEY*` variables work as before (single-host).
 
@@ -85,6 +84,3 @@ hashed; webhook and slash-command tokens are encrypted. Code: `server/channels/s
   OpenBAO (see "Key custody"); an HSM-backed OpenBAO seal is the next step.
 - **Search trade-off**: `ENCRYPTION_PREFIX_SEARCH=true` (on in `deploy/docker-compose.yml`) adds hashed word prefixes
   so `alph*` works; that shows someone with the database which words share a prefix. Set it to `false` to drop it.
-
-`deploy/verify-encryption.sh ["text you sent"]` is the older quick check: it greps a database dump for seeded
-e-mails/names and for a message you typed yourself.

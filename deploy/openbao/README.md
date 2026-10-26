@@ -7,43 +7,28 @@ either `OPENBAO_TOKEN` or AppRole (`OPENBAO_ROLE_ID` + `OPENBAO_SECRET_ID`). Fie
 read fails (unreachable, sealed, wrong token, empty path) the server refuses to start; it never falls back to
 the environment. Without `OPENBAO_ADDR` the environment variables still work (single-host installs).
 
-## Dev stack (what `docker compose` runs)
+## What `docker compose up -d` runs
 
-- `openbao`: `server -dev` — in-memory storage, auto-unsealed, root token `OPENBAO_ROOT_TOKEN` from `deploy/.env`.
-- `openbao-init`: one shot; writes the root secret from `.env` **only if the path is empty** (`init.sh`). After a
-  restart the in-memory store is gone, so the init job re-seeds the same material: kids stay the same, every
-  stored row and file stays readable. `.env` therefore remains the key backup in dev.
-- `server`: `OPENBAO_ADDR=http://openbao:8200`, `OPENBAO_TOKEN=${OPENBAO_ROOT_TOKEN}`; `docker compose exec server env`
-  shows no `ENCRYPTION_KEY*`.
+- `openbao`: raft storage on volume `openbao-data`, sealed at every start (Shamir 3-of-5), file audit device on
+  `openbao-audit` (`kms.hcl`). Port 8200 is bound to 127.0.0.1 for operator commands only.
+- `openbao-setup` (`setup.sh`, one shot on every `up`): the first time it initialises OpenBAO and writes the 5 unseal
+  shares and the root token to `deploy/openbao/secrets/init.txt` (host only, mode 600, gitignored), unseals, enables
+  KV v2, writes the root secret from `.env` **only if the path is empty**, writes the read-only policy
+  (`mrpostman-read.hcl`) and the AppRole, and puts the AppRole credentials into the `approle` volume. Later runs
+  unseal with `init.txt` while it is still on the host; without it they wait for 3 holders.
+- `server`: mounts only the `approle` volume (read-only) and logs in with AppRole. `docker compose exec server env`
+  shows no `ENCRYPTION_KEY*` and no token; the shares and the root token never reach this container.
 
 Inspect: `docker compose exec -e BAO_TOKEN=<root token> openbao bao kv get -mount=secret mrpostman/root`.
 
-## KMS profile (runnable production setup on one host)
-
-Steps 1–5 below are automated for a single-host install:
-
-```bash
-bash deploy/openbao/kms-setup.sh            # once: init (Shamir 3/5), unseal, kv + root secret from .env, policy, AppRole; starts the stack
-bash deploy/openbao/kms-setup.sh unseal     # after every OpenBAO restart; the server waits (fails closed) until then
-bash deploy/up.sh [--release]               # later starts: the KMS profile is the default once approle.env exists
-bash deploy/openbao/kms-setup.sh forget-env-keys   # production, once: take ENCRYPTION_KEY* off the host (see below)
-```
-
-**Keys off the host (OPS-20).** After `kms-setup.sh`, the root secret is in OpenBAO and still in `deploy/.env` (its
-seed). In production, once the 5 unseal shares are with their holders and an OpenBAO snapshot (`deploy/backup.sh`
-writes one) is stored offline, run `kms-setup.sh forget-env-keys`: it checks OpenBAO holds exactly the `.env` values
-and that a backup exists, then removes `ENCRYPTION_KEY*` from `.env`. From then on OpenBAO is the only copy on the
-host; `prove-encryption` ENC-39 reports it, and starting the in-memory dev OpenBAO (`up.sh --dev-kms`) fails closed.
-After a host or OpenBAO restart the stack waits until `kms-setup.sh unseal` (or 3 share holders) unseals it; run
-`bash deploy/up.sh` once more if it gave up waiting.
-
-Files: `docker-compose.kms.yml` (OpenBAO without `-dev`, raft on volume `openbao-data`, audit log on `openbao-audit`;
-server with `OPENBAO_TOKEN` empty and AppRole credentials from `openbao/secrets/approle.env`), `openbao/kms.hcl`
-(storage, listener, audit device), `openbao/mrpostman-read.hcl` (policy). `openbao/secrets/` is gitignored; `init.txt`
-holds the 5 unseal shares and the root token for the drill — in production hand the shares to 5 holders, revoke the
-root token and delete the file.
-Dev profile on purpose: `bash deploy/up.sh --dev-kms` (in-memory OpenBAO re-seeded from `.env`, so it needs the keys
-there; the `openbao-data` volume is kept).
+**Production (OPS-20).** Until then the root secret is in OpenBAO and still in `deploy/.env`. Once an OpenBAO
+snapshot (`bash deploy/backup.sh` writes one) is stored offline:
+1. `bash deploy/forget-env-keys.sh` — checks OpenBAO holds exactly the `.env` values and that a backup exists, then
+   removes `ENCRYPTION_KEY*` from `.env` (`prove-encryption` ENC-39 reports it).
+2. Give each of the 5 shares in `init.txt` to a different holder, revoke the root token
+   (`docker compose exec -e BAO_TOKEN=<root token> openbao bao token revoke <root token>`) and delete `init.txt`.
+3. After a reboot, 3 holders each run `docker compose exec openbao bao operator unseal` with their share; then
+   `docker compose up -d`. Until then the server does not start (fail closed).
 
 ## Production profile
 

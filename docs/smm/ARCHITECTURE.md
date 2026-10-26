@@ -32,7 +32,7 @@ Optional: your own push proxy (generic contents only), your own OpenID Connect I
 | Service (`deploy/docker-compose*.yml`) | Role | Default port |
 |---|---|---|
 | `db` | PostgreSQL 16, holds ciphertext only | internal |
-| `openbao`, `openbao-init` | KMS; `-dev` in memory for development, sealed raft with the KMS profile | `127.0.0.1:8200` |
+| `openbao`, `openbao-setup` | KMS: sealed raft storage, Shamir 3-of-5; one-shot init/unseal/AppRole on every `up` | `127.0.0.1:8200` |
 | `server` | smm server + stock web app | `8065` |
 | `tls` (`--release`) | nginx TLS edge, HSTS, IP allow-list | `8443` |
 
@@ -109,7 +109,7 @@ Rotation writes a new root to OpenBAO with the previous one in `old_keys`/`old_f
 - **Sealed storage:** raft on a volume, initialised with **Shamir 3-of-5** unseal shares. After any OpenBAO restart
   three share holders must unseal it before the server can start.
 - **Audit:** OpenBAO's file audit device logs every access to the secret.
-- **Keys off the host:** `kms-setup.sh forget-env-keys` removes `ENCRYPTION_KEY*` from `deploy/.env` after checking
+- **Keys off the host:** `forget-env-keys.sh` removes `ENCRYPTION_KEY*` from `deploy/.env` after checking
   OpenBAO holds the same values and a backup exists. From then on OpenBAO is the only copy on the host.
 
 ## 5. Other hardening
@@ -140,9 +140,9 @@ Rotation writes a new root to OpenBAO with the previous one in `old_keys`/`old_f
 
 | Command | Shows |
 |---|---|
-| `node deploy/prove-encryption.mjs` | every check of data at rest: ciphertext in every covered column, files encrypted, HMAC search tokens, no key in the server environment, rows on the current key |
+| `ADMIN_USER=… ADMIN_PASSWORD=… node deploy/prove-encryption.mjs` | every check of data at rest: ciphertext in every covered column, files encrypted, HMAC search tokens, no key in the server environment, rows on the current key |
 | `go test ./channels/store/sqlstore/ -run 'TestPostCipher\|TestSealPosts'` (in `server/`, needs a test Postgres) | AAD binding: moved/swapped rows, other channel or team rejected |
-| `bash deploy/up.sh --release`, then `docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.release.yml config` | the locked release settings (CFG-01…13) |
+| `docker compose -f docker-compose.yml -f docker-compose.release.yml config` (in `deploy/`) | the locked release settings (CFG-01…13) |
 
 Detailed proof and coverage list: [`ENCRYPTION.md`](ENCRYPTION.md). KMS operations:
 [`../../deploy/openbao/README.md`](../../deploy/openbao/README.md).

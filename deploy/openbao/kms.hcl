@@ -1,4 +1,4 @@
-# OpenBAO server config for the KMS profile (deploy/docker-compose.kms.yml). Persistent raft storage, sealed at
+# OpenBAO server config (deploy/docker-compose.yml, service openbao). Persistent raft storage, sealed at
 # start (Shamir 3-of-5), no UI. The listener is plain HTTP on the private compose network only (port 8200 is bound
 # to 127.0.0.1 on the host for operator commands).
 # ponytail: no TLS on the internal listener; when OpenBAO runs on a separate host, add tls_cert_file/tls_key_file

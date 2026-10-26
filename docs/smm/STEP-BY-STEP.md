@@ -1,121 +1,115 @@
 # smm step by step
 
 From an empty host to a running smm server with the KMS, a security demo, and production hardening. Architecture
-and the encryption design: [`ARCHITECTURE.md`](ARCHITECTURE.md). Every command runs from the repository root unless
-it says otherwise.
+and the encryption design: [`ARCHITECTURE.md`](ARCHITECTURE.md). Commands run in `deploy/` unless they say otherwise.
 
-## Quick install on a VM (one command)
-A fresh Linux VM with `git`, Docker (Compose v2) and `openssl`; 2 GB RAM, 20 GB disk. The server image comes ready-built
-from GHCR (`ghcr.io/ghiyastfarisi/smm:<tag>`, built by `.github/workflows/smm-image.yml`); `--build` builds it on the VM
-instead (8 GB RAM, web app in a `node` container, still no Node.js needed).
+## Quick install
 ```bash
-git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm
-git checkout v1.0.0-rc.5            # or the latest release tag
-bash deploy/install.sh              # http://<VM IP>:8065
+git clone -b smm https://github.com/ghiyastfarisi/smm.git && cd smm/deploy
+git checkout v1.0.0-rc.5                      # or the latest release tag
+umask 077 && cp .env.example .env && nano .env  # 3 secrets + SITE_URL (step 2)
+docker compose up -d                          # first time: builds the image (~15 min), sets up OpenBAO, starts
 ```
-Other addresses: `bash deploy/install.sh http://chat.internal:8065`, or with the locked release settings and the TLS
-edge: `bash deploy/install.sh --release https://chat.example.org:8443` (self-signed certificate until you replace
-`deploy/tls/{cert,key}.pem`). The address must be exactly what users open.
-
-`install.sh` creates `deploy/.env`, builds the web app and the server image, initialises OpenBAO (Shamir 3-of-5,
-AppRole, audit log) and starts the server. It creates **no demo users**: the first account you create in the browser
-becomes the system admin. Then:
-1. Copy `deploy/.env` and `deploy/openbao/secrets/init.txt` somewhere safe and offline.
-2. After any reboot: `bash deploy/openbao/kms-setup.sh unseal` (add `--release` if you installed with it).
-3. Before real users: §9 (TLS with a CA certificate, backup, `forget-env-keys`, hand out the shares, revoke the
-   root token).
-
-The sections below are the same install step by step, plus the security demo and operations.
+That is the whole install. It creates **no users, teams or channels** (step 6). Then copy `deploy/.env` and
+`deploy/openbao/secrets/init.txt` somewhere safe and offline, and before real users work through step 9.
 
 ## 0. Prerequisites
-- Linux host with Docker and Docker Compose v2, `git`, `openssl`, Node.js 20+ (for the build and proof scripts).
-- 4 GB RAM, 20 GB disk. Ports `8065` (server), optionally `8443` (TLS edge).
+- Linux host with Docker and Docker Compose v2, `git`, `openssl`. No Node.js: the web app builds inside Docker.
+- 8 GB RAM to build the image (2 GB to run it; with the image from GitHub no build is needed), 20 GB disk.
+  Ports `8065` (server), optionally `8443` (TLS edge).
+- Run every command as the same user, one that can use `docker` without `sudo` (`sudo usermod -aG docker $USER`,
+  then log in again), and that owns the checkout (`sudo chown -R $USER: /opt/app/smm` if you cloned with sudo).
 - Production: a domain name and a CA certificate for it; 5 people who will each hold one OpenBAO unseal share.
 
 ## 1. Get the code
 ```bash
 git clone -b smm https://github.com/ghiyastfarisi/smm.git
-cd smm
+cd smm/deploy
 git checkout <release tag>
 ```
 
-## 2. Build the stock web app into the server image
+## 2. Create `deploy/.env`
 ```bash
-node deploy/build-stock-client.mjs          # once per source change; takes several minutes
-```
-
-## 3. Create the secrets
-```bash
-cd deploy
 umask 077
-cat > .env <<EOF
-ENCRYPTION_KEY=$(openssl rand -base64 32)
-ENCRYPTION_KEY_FACTOR=$(openssl rand -base64 32)
-DB_PASSWORD=$(openssl rand -hex 16)
-OPENBAO_ROOT_TOKEN=$(openssl rand -hex 16)
-SITE_URL=http://localhost:8065
-EOF
-cd ..
+cp .env.example .env
+sed -i "s|^ENCRYPTION_KEY=$|ENCRYPTION_KEY=$(openssl rand -base64 32)|; \
+        s|^ENCRYPTION_KEY_FACTOR=$|ENCRYPTION_KEY_FACTOR=$(openssl rand -base64 32)|; \
+        s|^DB_PASSWORD=$|DB_PASSWORD=$(openssl rand -hex 16)|; \
+        s|^SITE_URL=.*|SITE_URL=http://$(hostname -I \| awk '{print $1}'):8065|" .env
+cat .env
 ```
-- `SITE_URL` is the address users open. For a local test keep `http://localhost:8065`; production uses
+- `SITE_URL` must be exactly the address users open (otherwise messages do not arrive in real time). Production:
   `https://<your domain>` (step 9).
-- **Back up `deploy/.env` now** (offline). Until step 9.4 it is the only copy of the root key outside OpenBAO;
+- `SMM_IMAGE`: keep `mrpostman-server:local` to build here; set `ghcr.io/ghiyastfarisi/smm:<tag>` to use the image
+  built on GitHub and run `docker compose pull server` once before step 3.
+- Release profile (locked settings, TLS edge on :8443): uncomment `COMPOSE_FILE=…` and run `bash gen-cert.sh <host>`
+  (self-signed; replace `tls/{cert,key}.pem` with a CA-issued pair in production).
+- **Back up `deploy/.env` now** (offline). Until step 9.3 it is the only copy of the root key outside OpenBAO;
   losing it before OpenBAO holds the key loses the data.
 
-## 4. Set up the KMS (OpenBAO) — once
+## 3. Start
 ```bash
-docker compose -f deploy/docker-compose.yml build server
-bash deploy/openbao/kms-setup.sh
+docker compose up -d
 ```
-This initialises OpenBAO with Shamir 3-of-5, unseals it, stores the root secret, writes the read-only policy and the
-server's AppRole, turns on the audit log and starts the stack. It writes:
-- `deploy/openbao/secrets/init.txt` — the 5 unseal shares and the initial root token (mode 600),
-- `deploy/openbao/secrets/approle.env` — the server's AppRole credentials.
+On the first run this builds the image (web app + server, about 15 minutes), then the one-shot `openbao-setup`:
+initialises OpenBAO (Shamir 3-of-5), unseals it, writes the root secret from `.env`, the read-only policy and the
+server's AppRole. Its log: `docker compose logs openbao-setup`. It writes:
+- `deploy/openbao/secrets/init.txt` — the 5 unseal shares and the initial root token (mode 600, host only),
+- the AppRole credentials into the `approle` volume, which only the server mounts.
 
-## 5. Start the server
-Only the core services (Postgres, OpenBAO, server):
+## 4. Day-to-day
 ```bash
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.kms.yml stop web
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.kms.yml up -d db openbao openbao-init server
+docker compose ps                 # status
+docker compose logs -f server     # server log
+docker compose up -d              # start; after a reboot this also unseals, while init.txt is still on the host
+docker compose down               # stop, data kept
 ```
-Or the whole development stack with demo users (`ani`, `budi`, `admin`, password `Demo#12345`):
-```bash
-bash deploy/up.sh
-```
+After a reboot OpenBAO is sealed. While `init.txt` is on the host, `docker compose up -d` unseals it. Once you have
+handed out the shares and deleted it (step 9.4), 3 holders run `docker compose exec openbao bao operator unseal`
+(each with their share), then `docker compose up -d`.
 
-## 6. Check it
+## 5. Check it
 ```bash
-curl -s localhost:8065/api/v4/system/ping           # {"status":"OK",...}
-node deploy/prove-encryption.mjs                    # ends with "all checks passed: data at rest is encrypted"
+curl -s localhost:8065/api/v4/system/ping                     # {"status":"OK",...}
+docker compose exec server env | grep -c ENCRYPTION_KEY        # 0: no key in the server
 ```
-Open `http://localhost:8065`. The first account you create becomes the system admin. The stock desktop and mobile apps use
-the same address.
+## 6. Create the users
+The server starts empty: no users, teams or channels. Create them yourself, either in the browser (open the
+`SITE_URL` address; the first account becomes the system admin and is asked to create a team) or on the host:
+```bash
+mm() { docker compose exec -T server mmctl --local "$@"; }
+mm user create --username <admin> --email <admin@your.org> --password '<strong password>' --system-admin --email-verified
+mm team create --name <team> --display-name "<Team name>" --private
+mm user create --username <user> --email <user@your.org> --password '<password>' --email-verified
+mm team users add <team> <admin> <user>
+```
+The stock desktop and mobile apps use the same address. Encryption proof (on the host; needs Node.js):
+`SERVER=<SITE_URL> ADMIN_USER=<admin> ADMIN_PASSWORD=<password> node prove-encryption.mjs`.
 
 ## 7. Security demo (10 minutes)
-1. **Normal use.** Two browser windows (one private), log in as `ani` and `budi`, send messages and a file in a DM
-   and in a channel. Messages arrive in real time.
+1. **Normal use.** Create two users (step 6), log in as each in two browser windows (one private), send messages and
+   a file in a DM and in a channel. Messages arrive in real time.
 2. **The database holds only ciphertext.**
    ```bash
-   docker exec -it mrpostman-db-1 psql -U mmuser mrpostman \
+   docker compose exec db psql -U mmuser mrpostman \
      -c "select id, channelid, left(message,120) from posts where type='' order by createat desc limit 3;"
    ```
    Each message looks like `enc:v4:<key id>:<teamId>/<channelId>:posts.message#<postId>:…`: the team, channel and
    message id are bound into the AEAD, so the value cannot be moved to another row or channel.
-3. **No key on the server.** `docker exec mrpostman-server-1 env | grep -i ENCRYPTION_KEY` prints nothing.
+3. **No key on the server.** `docker compose exec server env | grep -i ENCRYPTION_KEY` prints nothing.
 4. **The KMS locks the data.**
    ```bash
-   docker restart mrpostman-openbao-1               # OpenBAO comes back sealed
-   docker restart mrpostman-server-1                # the server refuses to start: it cannot read its key
-   docker logs --tail 5 mrpostman-server-1
+   docker compose restart openbao           # OpenBAO comes back sealed
+   docker compose restart server            # the server refuses to start: it cannot read its key
+   docker compose logs --tail 5 server
    ```
 5. **Three holders unlock it.**
    ```bash
-   bash deploy/openbao/kms-setup.sh unseal          # uses 3 of the 5 shares
-   bash deploy/up.sh                                 # everything back; the messages are readable again
+   docker compose up -d                     # unseals with 3 of the 5 shares in init.txt; messages readable again
    ```
-6. **Audit trail.** `docker exec mrpostman-openbao-1 tail -n 3 /openbao/logs/audit.log` shows the server's
+6. **Audit trail.** `docker compose exec openbao tail -n 3 /openbao/logs/audit.log` shows the server's
    read of the root secret.
-7. **Proof report.** `node deploy/prove-encryption.mjs`.
+7. **Proof report.** `ADMIN_USER=<admin> ADMIN_PASSWORD=<password> node prove-encryption.mjs`.
 
 ## 8. Clients
 - **Browser:** the stock web app at the site URL.
@@ -157,13 +151,13 @@ the same address.
    and restart the server. The site URL must match the address users open, or the server rejects the WebSocket.
 2. **Release settings.** Apply the locked settings of `deploy/docker-compose.release.yml` (rate limit, password
    policy, session lengths, CORS, invite-only, file size). The bundled `tls` service in that file is a local
-   self-signed TLS edge (`up.sh --release`, https://localhost:8443); in production use your proxy from 9.1 and add the
+   self-signed TLS edge (`COMPOSE_FILE=…` in `.env`, https://localhost:8443); in production use your proxy from 9.1 and add the
    release file's `server` environment.
 3. **Backups, then keys off the host** (while `init.txt` still exists: `backup.sh` uses its root token for the
    OpenBAO snapshot).
    ```bash
    bash deploy/backup.sh                             # database + files (ciphertext) and an OpenBAO raft snapshot
-   bash deploy/openbao/kms-setup.sh forget-env-keys  # removes ENCRYPTION_KEY* from .env after checking OpenBAO and the backup
+   bash deploy/forget-env-keys.sh                    # removes ENCRYPTION_KEY* from .env after checking OpenBAO and the backup
    ```
    Store the backup and the snapshot offline, separately from each other and from the unseal shares.
 4. **Unseal shares.** Give each of the 5 shares in `init.txt` to a different named holder (sealed envelope or
@@ -179,18 +173,18 @@ Order matters in 9.3 → 9.4: back up first, hand out the shares last.
 ## 10. Operating
 | Task | Command |
 |---|---|
-| After a host or OpenBAO restart | 3 holders: `bash deploy/openbao/kms-setup.sh unseal`, then `bash deploy/up.sh` |
+| After a host or OpenBAO restart | `docker compose up -d` (unseals while `init.txt` is on the host); without it, 3 holders: `docker compose exec openbao bao operator unseal`, then `docker compose up -d` |
 | Backup | `bash deploy/backup.sh` (store offline) |
 | Restore | `bash deploy/restore.sh <backup>` (OpenBAO must hold the matching root secret) |
 | Compliance export / retention | `MM_TOKEN=<admin token> node deploy/records.mjs export --since 2026-10-01 > export.csv`; `… retention --days 365` (dry run, `--apply` deletes) |
 | Key rotation | new root in OpenBAO with the old one in `old_keys`/`old_factors`, then start once with `ENCRYPTION_BACKFILL=true` (`deploy/openbao/README.md` §3); check `prove-encryption.mjs` ENC-42 = 0 |
-| Upgrade | `git checkout <new tag>`, `node deploy/build-stock-client.mjs`, rebuild and start; older rows are re-sealed at start |
-| Stop (data kept) | `docker compose -f deploy/docker-compose.yml down` |
+| Upgrade | `git checkout <new tag>`, `docker compose build server` (or `docker compose pull server` with the new `SMM_IMAGE`), then `docker compose up -d`; older rows are re-sealed at start |
+| Stop (data kept) | `docker compose down` |
 
 ## 11. Troubleshooting
 | Symptom | Cause | Fix |
 |---|---|---|
-| Server container keeps restarting, logs mention OpenBAO | OpenBAO is sealed (after any restart) | `bash deploy/openbao/kms-setup.sh unseal` |
+| Server container keeps restarting, logs mention OpenBAO | OpenBAO is sealed (after any restart) | `docker compose up -d`, or 3 holders unseal (row above) |
 | `dependency failed to start: container …openbao… is unhealthy` | same | same, then start again |
 | Messages only appear after a page refresh, no notifications | WebSocket rejected: the address you opened is not `SITE_URL` (or an allowed CORS origin), or the proxy does not pass `Upgrade` | open the site URL exactly; set `SITE_URL`; add the WebSocket block of 9.1 |
 | No desktop notifications in the browser | permission not granted, or plain HTTP on a non-localhost address | allow notifications; use HTTPS |

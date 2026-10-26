@@ -1,1 +1,5 @@
 .env
+.env.tmp
+openbao/secrets/
+tls/
+backups/
