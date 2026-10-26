@@ -22,6 +22,7 @@ server fork, the KMS and the deployment; it ships no client builds.
 | | |
 |---|---|
 | Architecture, how smm extends Mattermost, security and encryption design | [docs/smm/ARCHITECTURE.md](docs/smm/ARCHITECTURE.md) |
+| **How to deploy** (VM, compose, users, production checklist) | [docs/smm/DEPLOY.md](docs/smm/DEPLOY.md) |
 | Step by step: install, KMS, security demo, production hardening, operations | [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md) |
 | Encryption proof and coverage | [docs/smm/ENCRYPTION.md](docs/smm/ENCRYPTION.md) |
 | KMS operations | [deploy/openbao/README.md](deploy/openbao/README.md) |
@@ -35,7 +36,7 @@ docker compose up -d                  # builds the image the first time, sets up
 ```
 No users, teams or channels are created. Open `SITE_URL` and create the first account (it becomes the system
 admin), or use `mmctl --local`. Then keep `deploy/.env` and `deploy/openbao/secrets/init.txt` offline. Details,
-the security demo and production hardening: [docs/smm/STEP-BY-STEP.md](docs/smm/STEP-BY-STEP.md).
+the security demo and production hardening: [docs/smm/DEPLOY.md](docs/smm/DEPLOY.md).
 
 ## Repository layout
 | Path | What | Licence |
